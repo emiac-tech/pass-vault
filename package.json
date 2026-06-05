@@ -1,0 +1,51 @@
+{
+  "name": "pass-vault",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:web": "vite",
+    "dev:api": "tsx watch server/index.ts",
+    "dev:all": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "build": "tsc -b && vite build",
+    "build:api": "tsc -p tsconfig.server.json",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "db:migrate": "tsx server/scripts/migrate.ts",
+    "seed:super-admin": "tsx server/scripts/seed-super-admin.ts",
+    "seed:demo-data": "tsx server/scripts/seed-demo-data.ts"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "latest",
+    "nodemailer": "^8.0.10",
+    "pg": "^8.21.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "latest",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.9.1",
+    "@types/nodemailer": "^8.0.0",
+    "@types/pg": "^8.20.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "concurrently": "^10.0.3",
+    "eslint": "latest",
+    "eslint-plugin-react-hooks": "latest",
+    "eslint-plugin-react-refresh": "latest",
+    "tsx": "^4.22.4",
+    "typescript-eslint": "latest"
+  }
+}

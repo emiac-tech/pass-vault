@@ -1,0 +1,38 @@
+services:
+  # The whole app (web + API) in one container, served on http://localhost:4000.
+  # Reads DATABASE_URL / JWT_SECRET / etc. from .env (currently the remote DB).
+  passvault:
+    build: .
+    container_name: pass-vault-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      API_PORT: 4000
+    ports:
+      - "4000:4000"
+
+  # Optional local Postgres — the app uses a remote DB by default, so this does
+  # NOT start unless you opt in:  docker compose --profile localdb up
+  postgres:
+    image: postgres:16-alpine
+    container_name: pass-vault-postgres
+    profiles: ["localdb"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pass_vault
+      POSTGRES_USER: pass_vault
+      POSTGRES_PASSWORD: pass_vault
+    ports:
+      - "55432:5432"
+    volumes:
+      - pass_vault_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pass_vault -d pass_vault"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pass_vault_postgres:
