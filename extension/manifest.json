@@ -3,7 +3,7 @@
   "name": "Pass Vault",
   "version": "0.1.0",
   "description": "Pass Vault — secure password autofill for your organization.",
-  "permissions": ["storage", "activeTab", "scripting", "contextMenus", "clipboardWrite"],
+  "permissions": ["storage", "activeTab", "scripting", "clipboardWrite"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "action": {
     "default_title": "Pass Vault",
