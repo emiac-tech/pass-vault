@@ -9,7 +9,7 @@
 
   // Bump this when content.js changes so you can confirm in the page console
   // (F12) that the freshly-loaded code is running, not a stale injected copy.
-  console.info('[Pass Vault] content script v6 — keyword-based username detection (no bare input[type=text])');
+  console.info('[Pass Vault] content script v7 — keyword username detection + auto-login after autofill');
 
   const STYLE_ID = 'pass-vault-content-style';
   // Identify the username/email field by credential keywords in its attributes —
@@ -243,8 +243,32 @@
     document.documentElement.appendChild(style);
   }
 
+  // True only while this content script's extension context is still alive.
+  // After the extension is reloaded/updated, orphaned scripts in old tabs lose it.
+  function extensionAlive() {
+    try { return Boolean(chrome.runtime && chrome.runtime.id); } catch { return false; }
+  }
+
   function sendMessage(message) {
-    return new Promise((resolve) => chrome.runtime.sendMessage(message, resolve));
+    return new Promise((resolve) => {
+      if (!extensionAlive()) { resolve(null); return; }
+      try {
+        chrome.runtime.sendMessage(message, (response) => {
+          // Reading lastError consumes it so Chrome won't log an unchecked warning.
+          if (chrome.runtime.lastError) { resolve(null); return; }
+          resolve(response);
+        });
+      } catch {
+        // "Extension context invalidated" — the extension was reloaded. Fail quietly.
+        resolve(null);
+      }
+    });
+  }
+
+  // chrome.storage read that never throws on an invalidated context.
+  async function storageGet(keys) {
+    if (!extensionAlive()) return {};
+    try { return await chrome.storage.local.get(keys); } catch { return {}; }
   }
 
   function visible(field) {
@@ -351,6 +375,53 @@
     setTimeout(() => document.addEventListener('click', closePickers, { once: true }), 50);
   }
 
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // Auto-login: after filling, find the login/sign-in/submit button and click it.
+  // Positive words to click; negative words to NEVER click (sign up, register, logout…).
+  const LOGIN_BTN_POSITIVE = /\b(log[\s-]?in|sign[\s-]?in|log[\s-]?on|sign[\s-]?on|submit|continue|access)\b/i;
+  const LOGIN_BTN_NEGATIVE = /\b(sign[\s-]?up|log[\s-]?out|sign[\s-]?out|register|create[\s-]?(an[\s-]?)?account|forgot|reset|cancel|back|help|demo|trial|guest)\b/i;
+
+  function loginButtonText(el) {
+    return (el.innerText || el.value || el.getAttribute('aria-label') || el.title || el.name || '').trim();
+  }
+
+  function findLoginButton(passwordField) {
+    const form = passwordField?.closest('form');
+    // Prefer the form's own submit control (unless it's clearly a sign-up/etc).
+    if (form) {
+      for (const el of form.querySelectorAll('button[type="submit"], input[type="submit"]')) {
+        if (visible(el) && !LOGIN_BTN_NEGATIVE.test(loginButtonText(el))) return el;
+      }
+    }
+    // Otherwise match by visible label within the form (or whole page if no form).
+    const scope = form || document;
+    for (const el of scope.querySelectorAll('button, input[type="submit"], input[type="button"], a[role="button"], [role="button"]')) {
+      if (!visible(el)) continue;
+      const text = loginButtonText(el);
+      if (!text || LOGIN_BTN_NEGATIVE.test(text)) continue;
+      if (LOGIN_BTN_POSITIVE.test(text)) return el;
+    }
+    return null;
+  }
+
+  // Returns true if it triggered a submit. Controlled by the `autoSubmit` setting (default ON).
+  async function maybeAutoLogin(passwordField) {
+    if (!passwordField) return false;
+    const { autoSubmit } = await storageGet(['autoSubmit']);
+    if (autoSubmit === false) return false;
+    await delay(300); // let the page/framework register the filled values
+    const button = findLoginButton(passwordField);
+    if (button) { button.click(); return true; }
+    const form = passwordField.closest('form');
+    if (form && hasSubmitIntent(form)) {
+      if (typeof form.requestSubmit === 'function') form.requestSubmit();
+      else form.submit();
+      return true;
+    }
+    return false;
+  }
+
   async function fillItem(item, field) {
     const response = await sendMessage({ type: 'decrypt', itemId: item.id });
     if (!response?.ok) throw new Error(response?.error || 'Could not decrypt credential');
@@ -358,6 +429,8 @@
     const usernameField = passwordField ? usernameForPassword(passwordField) : field;
     setValue(usernameField, response.payload.username);
     setValue(passwordField, response.payload.password);
+    const submitted = await maybeAutoLogin(passwordField);
+    return { submitted };
   }
 
   async function handleFieldClick(field, button) {
@@ -368,11 +441,11 @@
     }
     const items = state.items;
     if (items.length === 1) {
-      await fillItem(items[0], field);
-      showLockedBadge(field, 'Filled ✓');
+      const { submitted } = await fillItem(items[0], field);
+      showLockedBadge(field, submitted ? 'Signing in…' : 'Filled ✓');
       return;
     }
-    showPicker(button, items, (item) => fillItem(item, field).then(() => showLockedBadge(field, 'Filled ✓')));
+    showPicker(button, items, (item) => fillItem(item, field).then((r) => showLockedBadge(field, r?.submitted ? 'Signing in…' : 'Filled ✓')));
   }
 
   function showLockedBadge(field, text) {
@@ -781,7 +854,7 @@
   // origin) — that login isn't a vault item, so it would re-prompt forever.
   async function isPassVaultOrigin() {
     try {
-      const { webAppUrl, apiBaseUrl } = await chrome.storage.local.get(['webAppUrl', 'apiBaseUrl']);
+      const { webAppUrl, apiBaseUrl } = await storageGet(['webAppUrl', 'apiBaseUrl']);
       const origins = [];
       for (const u of [webAppUrl || 'https://passvault.103.180.163.41.sslip.io', apiBaseUrl || 'https://passvault.103.180.163.41.sslip.io/api']) {
         try { origins.push(new URL(u).origin); } catch { /* ignore */ }
@@ -794,7 +867,7 @@
 
   async function isSavedLocally(credential) {
     try {
-      const { savedCredIndex } = await chrome.storage.local.get(['savedCredIndex']);
+      const { savedCredIndex } = await storageGet(['savedCredIndex']);
       if (!Array.isArray(savedCredIndex) || savedCredIndex.length === 0) return false;
       const host = hostFromUrl(credential.url || '');
       const username = normalizeUsername(credential.username);

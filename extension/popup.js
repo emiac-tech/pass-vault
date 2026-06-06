@@ -525,9 +525,11 @@ async function decryptItem(itemId) {
 async function autofillActiveTab(payload) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) throw new Error('No active tab');
+  const { autoSubmit } = await chrome.storage.local.get(['autoSubmit']);
+  const autoLogin = autoSubmit !== false; // default ON
   await chrome.scripting.executeScript({
     target: { tabId: tab.id },
-    func: (username, password) => {
+    func: (username, password, autoLogin) => {
       const usernameField = document.querySelector(
         'input[type="email"], input[name*="user" i], input[name*="email" i], input[autocomplete*="username" i]',
       );
@@ -541,8 +543,37 @@ async function autofillActiveTab(payload) {
       };
       setValue(usernameField, username);
       setValue(passwordField, password);
+
+      // Auto-login: click the login / sign in / submit button after filling.
+      if (!autoLogin || !passwordField) return;
+      const POS = /\b(log[\s-]?in|sign[\s-]?in|log[\s-]?on|sign[\s-]?on|submit|continue|access)\b/i;
+      const NEG = /\b(sign[\s-]?up|log[\s-]?out|sign[\s-]?out|register|create[\s-]?(an[\s-]?)?account|forgot|reset|cancel|back|help|demo|trial|guest)\b/i;
+      const vis = (el) => { if (!el || el.disabled) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && el.offsetParent !== null; };
+      const txt = (el) => (el.innerText || el.value || el.getAttribute('aria-label') || el.title || el.name || '').trim();
+      const form = passwordField.closest('form');
+      const pick = () => {
+        if (form) {
+          for (const el of form.querySelectorAll('button[type="submit"], input[type="submit"]')) {
+            if (vis(el) && !NEG.test(txt(el))) return el;
+          }
+        }
+        const scope = form || document;
+        for (const el of scope.querySelectorAll('button, input[type="submit"], input[type="button"], a[role="button"], [role="button"]')) {
+          if (!vis(el)) continue;
+          const t = txt(el);
+          if (!t || NEG.test(t)) continue;
+          if (POS.test(t)) return el;
+        }
+        return null;
+      };
+      setTimeout(() => {
+        const btn = pick();
+        if (btn) { btn.click(); return; }
+        if (form && typeof form.requestSubmit === 'function') form.requestSubmit();
+        else if (form) form.submit();
+      }, 300);
     },
-    args: [payload.username || '', payload.password || ''],
+    args: [payload.username || '', payload.password || '', autoLogin],
   });
 }
 
@@ -674,7 +705,7 @@ settingsButton.addEventListener('click', renderSettings);
 async function renderSettings() {
   activeTabName = 'settings';
   currentScreen = 'settings';
-  const stored = await chrome.storage.local.get(['apiBaseUrl', 'webAppUrl', 'accountToken', 'pairedUser']);
+  const stored = await chrome.storage.local.get(['apiBaseUrl', 'webAppUrl', 'accountToken', 'pairedUser', 'autoSubmit']);
   const wrap = element('div', { class: 'vault-screen' });
   wrap.appendChild(element('div', { class: 'search-bar disabled' },
     element('span', { class: 'search-icon' }, '⌕'),
@@ -693,6 +724,26 @@ async function renderSettings() {
     ));
     screen.appendChild(profileSection);
   }
+
+  // Autofill preferences
+  const prefSection = element('div', { class: 'settings-section' });
+  prefSection.appendChild(element('h3', {}, 'Autofill'));
+  prefSection.appendChild(element('p', { class: 'helper' }, 'After filling your username and password, automatically click the login / sign in button.'));
+  const autoOn = stored.autoSubmit !== false; // default ON
+  const autoRow = element('div', { class: 'env-switch' });
+  const makeAutoBtn = (label, value) => {
+    const btn = element('button', { class: autoOn === value ? 'env-option active' : 'env-option', type: 'button' }, label);
+    btn.addEventListener('click', async () => {
+      await chrome.storage.local.set({ autoSubmit: value });
+      showToast(value ? 'Auto login enabled' : 'Auto login disabled');
+      renderSettings();
+    });
+    return btn;
+  };
+  autoRow.appendChild(makeAutoBtn('On', true));
+  autoRow.appendChild(makeAutoBtn('Off', false));
+  prefSection.appendChild(element('label', {}, 'Auto login', autoRow));
+  screen.appendChild(prefSection);
 
   // Server section
   const serverSection = element('div', { class: 'settings-section' });

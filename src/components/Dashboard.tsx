@@ -236,6 +236,16 @@ export function Dashboard({
             items={items}
             users={users}
             ctx={ctx}
+            onNavigate={(panel, opts) => {
+              if (opts?.filter) {
+                setScope('mine');
+                setFilter(opts.filter);
+                setFolderFilter(null);
+                setTagFilter(null);
+                setTypeFilter(null);
+              }
+              setActivePanel(panel);
+            }}
           />
         )}
 

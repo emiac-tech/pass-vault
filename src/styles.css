@@ -601,6 +601,49 @@ h4 { font-size: 0.95rem; font-weight: 700; }
 .stat-card h3 { margin-top: 0.35rem; font-size: 2.05rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
 .stat-card span { color: var(--pv-text-faint); font-size: 0.82rem; }
 
+.stat-card.is-clickable { cursor: pointer; }
+.stat-card.is-clickable:hover { transform: translateY(-2px); border-color: var(--pv-brand); }
+.stat-card.is-clickable:focus-visible { outline: 2px solid var(--pv-brand); outline-offset: 2px; }
+.stat-go {
+  position: absolute;
+  top: 0.95rem;
+  right: 0.95rem;
+  color: var(--pv-text-faint);
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s ease;
+}
+.stat-card.is-clickable:hover .stat-go,
+.stat-card.is-clickable:focus-visible .stat-go { opacity: 1; transform: translate(2px, -2px); color: var(--pv-brand); }
+
+/* Horizontal distribution bars (Items by type) */
+.cat-bars { list-style: none; display: grid; gap: 0.85rem; margin: 1.2rem 0 0; padding: 0; }
+.cat-row { display: grid; grid-template-columns: minmax(6rem, 9rem) 1fr auto; align-items: center; gap: 0.9rem; }
+.cat-label {
+  color: var(--pv-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cat-track {
+  height: 0.85rem;
+  border-radius: 999px;
+  background: var(--pv-inset-soft);
+  border: 1px solid var(--pv-border);
+  overflow: hidden;
+}
+.cat-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--pv-brand), #6366f1);
+  min-width: 0.5rem;
+  transition: width 0.45s ease;
+}
+.cat-value { display: flex; align-items: baseline; gap: 0.4rem; justify-content: flex-end; min-width: 3.75rem; font-weight: 800; font-size: 1rem; }
+.cat-value small { color: var(--pv-text-faint); font-weight: 600; font-size: 0.72rem; }
+
 .wide-card, .panel-card { padding: 1.3rem 1.4rem; }
 .wide-card { grid-column: span 2; }
 

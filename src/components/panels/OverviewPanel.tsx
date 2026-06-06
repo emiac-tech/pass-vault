@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
-  Activity, Folder, KeyRound, Share2, ShieldCheck, ShieldEllipsis, Users,
+  Activity, ArrowUpRight, Folder, KeyRound, Share2, ShieldCheck, ShieldEllipsis, Users,
 } from 'lucide-react';
 import type { ApiUser, ApiVaultItem, DashboardMetrics } from '../../api/passVaultApi';
 import { scorePassword } from '../../crypto/vaultCrypto';
-import type { Scope, VaultContext } from '../../lib/appTypes';
+import type { Panel, Scope, VaultContext } from '../../lib/appTypes';
 import { decryptItemPayload } from '../../lib/vaultHelpers';
 import { vaultItemTypeLabels, type Role, type VaultItemType } from '../../types';
 
 export function OverviewPanel({
-  role, scope, setScope, metrics, teamMetrics, items, users, ctx,
+  role, scope, setScope, metrics, teamMetrics, items, users, ctx, onNavigate,
 }: {
   role: Role;
   scope: Scope;
@@ -19,22 +19,23 @@ export function OverviewPanel({
   items: ApiVaultItem[];
   users: Array<ApiUser & { lastActiveAt?: string }>;
   ctx: VaultContext;
+  onNavigate: (panel: Panel, opts?: { filter?: 'all' | 'shared-by-me' }) => void;
 }) {
   const canViewTeam = role !== 'user';
   // My passwords = everything I can access = owned + shared with me (excludes trash).
   const myPasswords = items.filter((item) => !item.deletedAt).length;
-  const stats = scope === 'team'
+  const stats: Array<{ label: string; value: string; detail: string; icon: typeof KeyRound; go?: () => void }> = scope === 'team'
     ? [
-      { label: 'Users', value: String(teamMetrics?.totalUsers ?? users.length), detail: 'All organization members', icon: Users },
+      { label: 'Users', value: String(teamMetrics?.totalUsers ?? users.length), detail: 'All organization members', icon: Users, go: () => onNavigate('users') },
       { label: 'Vault Items', value: String(teamMetrics?.totalItems ?? 0), detail: 'All passwords across users', icon: KeyRound },
       { label: 'Active Shares', value: String(teamMetrics?.activeShares ?? 0), detail: 'Live shares (not revoked)', icon: Share2 },
-      { label: 'Audit Events (24h)', value: String(teamMetrics?.auditEventsToday ?? 0), detail: 'Tracked actions today', icon: Activity },
+      { label: 'Audit Events (24h)', value: String(teamMetrics?.auditEventsToday ?? 0), detail: 'Tracked actions today', icon: Activity, go: () => onNavigate('audit') },
     ]
     : [
-      { label: 'My Passwords', value: String(myPasswords), detail: 'Saved by me + shared with me', icon: KeyRound },
-      { label: 'Folders', value: String(metrics?.folders ?? 0), detail: 'Personal organization', icon: Folder },
-      { label: 'Shared by Me', value: String(metrics?.sharedByMe ?? 0), detail: 'Active outbound shares', icon: Share2 },
-      { label: 'Aged Items', value: String(metrics?.expired ?? 0), detail: 'Older than 180 days', icon: ShieldCheck },
+      { label: 'My Passwords', value: String(myPasswords), detail: 'Saved by me + shared with me', icon: KeyRound, go: () => onNavigate('passwords', { filter: 'all' }) },
+      { label: 'Folders', value: String(metrics?.folders ?? 0), detail: 'Personal organization', icon: Folder, go: () => onNavigate('folders') },
+      { label: 'Shared by Me', value: String(metrics?.sharedByMe ?? 0), detail: 'Active outbound shares', icon: Share2, go: () => onNavigate('passwords', { filter: 'shared-by-me' }) },
+      { label: 'Aged Items', value: String(metrics?.expired ?? 0), detail: 'Older than 180 days', icon: ShieldCheck, go: () => onNavigate('passwords', { filter: 'all' }) },
     ];
 
   return (
@@ -46,9 +47,25 @@ export function OverviewPanel({
       <div className="dashboard-grid">
         {stats.map((stat) => {
           const Icon = stat.icon;
+          const clickable = Boolean(stat.go);
           return (
-            <article className="stat-card" key={stat.label}>
+            <article
+              className={clickable ? 'stat-card is-clickable' : 'stat-card'}
+              key={stat.label}
+              {...(clickable
+                ? {
+                  role: 'button',
+                  tabIndex: 0,
+                  onClick: stat.go,
+                  onKeyDown: (e: ReactKeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); stat.go?.(); }
+                  },
+                  'aria-label': `${stat.label}: ${stat.value}. Open section`,
+                }
+                : {})}
+            >
               <div className="stat-icon"><Icon size={22} /></div>
+              {clickable && <ArrowUpRight className="stat-go" size={18} aria-hidden="true" />}
               <p>{stat.label}</p>
               <h3>{stat.value}</h3>
               <span>{stat.detail}</span>
@@ -137,13 +154,14 @@ function HealthScoreCard({ items, ctx }: { items: ApiVaultItem[]; ctx: VaultCont
 }
 
 function CategoryDistributionCard({ metrics }: { metrics: DashboardMetrics | null }) {
-  const buckets = metrics?.byType ?? [];
+  const buckets = [...(metrics?.byType ?? [])].sort((a, b) => b.count - a.count);
+  const total = buckets.reduce((acc, bucket) => acc + bucket.count, 0);
   const max = Math.max(1, ...buckets.map((b) => b.count));
   return (
     <article className="wide-card">
       <div className="card-header">
         <div><p className="eyebrow">Categories</p><h3>Items by type</h3></div>
-        <span className="muted">{buckets.reduce((acc, bucket) => acc + bucket.count, 0)} total</span>
+        <span className="muted">{total} total</span>
       </div>
       {buckets.length === 0 ? (
         <div className="empty-card">
@@ -152,14 +170,21 @@ function CategoryDistributionCard({ metrics }: { metrics: DashboardMetrics | nul
           <p className="muted">Add your first credential to see the distribution by type.</p>
         </div>
       ) : (
-        <div className="bar-preview">
-          {buckets.map((bucket) => (
-            <div className="bar-column" key={bucket.type} title={`${bucket.count} items`}>
-              <span style={{ height: `${Math.max(8, (bucket.count / max) * 100)}%` }} />
-              <small>{vaultItemTypeLabels[bucket.type as VaultItemType] ?? bucket.type}</small>
-            </div>
-          ))}
-        </div>
+        <ul className="cat-bars">
+          {buckets.map((bucket) => {
+            const label = vaultItemTypeLabels[bucket.type as VaultItemType] ?? bucket.type;
+            const share = total ? Math.round((bucket.count / total) * 100) : 0;
+            return (
+              <li className="cat-row" key={bucket.type}>
+                <span className="cat-label" title={label}>{label}</span>
+                <div className="cat-track" role="img" aria-label={`${label}: ${bucket.count} items (${share}%)`}>
+                  <span className="cat-fill" style={{ width: `${Math.max(4, (bucket.count / max) * 100)}%` }} />
+                </div>
+                <span className="cat-value">{bucket.count}<small>{share}%</small></span>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </article>
   );
@@ -168,17 +193,29 @@ function CategoryDistributionCard({ metrics }: { metrics: DashboardMetrics | nul
 function ActivitySparkline({ metrics }: { metrics: DashboardMetrics | null }) {
   const points = metrics?.activity ?? [];
   const max = Math.max(1, ...points.map((p) => p.count));
+  const totalEvents = points.reduce((acc, p) => acc + p.count, 0);
   return (
     <article className="wide-card">
-      <p className="eyebrow">Activity (14 days)</p>
-      <div className="bar-preview">
-        {points.map((point) => (
-          <div className="bar-column" key={point.day}>
-            <span style={{ height: `${Math.max(6, (point.count / max) * 100)}%` }} />
-            <small>{point.day.slice(5)}</small>
-          </div>
-        ))}
+      <div className="card-header">
+        <div><p className="eyebrow">Activity</p><h3>Last 14 days</h3></div>
+        <span className="muted">{totalEvents} events</span>
       </div>
+      {totalEvents === 0 ? (
+        <div className="empty-card">
+          <Activity size={26} />
+          <strong>No recent activity.</strong>
+          <p className="muted">Actions like adding, sharing, or updating items will show up here.</p>
+        </div>
+      ) : (
+        <div className="bar-preview">
+          {points.map((point) => (
+            <div className="bar-column" key={point.day} title={`${point.count} events on ${point.day}`}>
+              <span style={{ height: `${Math.max(6, (point.count / max) * 100)}%` }} />
+              <small>{point.day.slice(5)}</small>
+            </div>
+          ))}
+        </div>
+      )}
     </article>
   );
 }
