@@ -8,13 +8,15 @@ import {
 import type { AuthSession, Panel, Scope, VaultContext } from '../lib/appTypes';
 import { panels, roleLabels, toDashboardRole } from '../lib/constants';
 import { downloadFile } from '../lib/files';
-import { exportVaultJson } from '../lib/vaultHelpers';
+import { exportVaultJson, getItemKey, wrapItemKeyForRecovery } from '../lib/vaultHelpers';
+import { unwrapOrgPrivateKey, wrapItemKey, wrapOrgPrivateKeyForAdmin } from '../crypto/vaultCrypto';
 import type { VaultItemType } from '../types';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { OverviewPanel } from './panels/OverviewPanel';
 import { PasswordsPanel } from './panels/PasswordsPanel';
 import { FoldersPanel } from './panels/FoldersPanel';
 import { UsersTable } from './panels/UsersTable';
+import { UserPasswordStats, type UserStatRow } from './panels/UserPasswordStats';
 import { AuditPanel } from './panels/AuditPanel';
 import { ReportsPanel } from './panels/ReportsPanel';
 import { SettingsPanel } from './panels/SettingsPanel';
@@ -49,6 +51,8 @@ export function Dashboard({
   const [users, setUsers] = useState<Array<ApiUser & { lastActiveAt?: string }>>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [teamMetrics, setTeamMetrics] = useState<{ totalUsers: number; totalItems: number; activeShares: number; auditEventsToday: number } | null>(null);
+  const [userStats, setUserStats] = useState<UserStatRow[]>([]);
+  const [orgRecoveryPublicKey, setOrgRecoveryPublicKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ tone: 'success' | 'danger' | 'info'; message: string } | null>(null);
 
@@ -73,18 +77,20 @@ export function Dashboard({
     setLoading(true);
     try {
       const includeTrash = filter === 'trash';
-      const [itemsR, foldersR, tagsR, dirR, metricsR] = await Promise.all([
+      const [itemsR, foldersR, tagsR, dirR, metricsR, recoveryR] = await Promise.all([
         passVaultApi.listVaultItems(includeTrash),
         passVaultApi.listFolders(),
         passVaultApi.listTags(),
         passVaultApi.directory().catch(() => ({ users: [] })),
         passVaultApi.dashboardMetrics().catch(() => null),
+        passVaultApi.recoveryPublicKey().catch(() => ({ publicKey: null })),
       ]);
       setItems(itemsR.items);
       setFolders(foldersR.folders);
       setTags(tagsR.tags);
       setDirectory(dirR.users);
       setMetrics(metricsR);
+      setOrgRecoveryPublicKey(recoveryR.publicKey);
       if (currentRole !== 'user') {
         try {
           const usersR = await passVaultApi.listUsers();
@@ -92,6 +98,9 @@ export function Dashboard({
         } catch { /* ignore */ }
         try {
           setTeamMetrics(await passVaultApi.teamMetrics());
+        } catch { /* ignore */ }
+        try {
+          setUserStats((await passVaultApi.userStats()).stats);
         } catch { /* ignore */ }
       }
     } catch (err) {
@@ -109,6 +118,53 @@ export function Dashboard({
     const handle = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(handle);
   }, [toast]);
+
+  // Org-recovery self-heal: (a) add a recovery copy for owned items that lack one,
+  // (b) after a transfer, re-wrap RSA-wrapped owner copies back to the master key
+  // (owner_key_wrap='rsa' -> 'master'). Idempotent; runs whenever items change.
+  const healingRef = useRef(false);
+  useEffect(() => {
+    if (healingRef.current) return;
+    const owned = items.filter((i) => i.ownerId === session.user.id && !i.deletedAt);
+    const needBackfill = orgRecoveryPublicKey ? owned.filter((i) => !i.recoveryWrappedItemKey) : [];
+    const needRekey = owned.filter((i) => i.ownerKeyWrap === 'rsa');
+    if (needBackfill.length === 0 && needRekey.length === 0) return;
+    healingRef.current = true;
+    (async () => {
+      const healCtx: VaultContext = {
+        user: session.user, masterKey: vault.masterKey, privateKey: vault.privateKey,
+        orgRecoveryPublicKey, refresh: refreshAll,
+      };
+      try {
+        if (needBackfill.length) {
+          const entries: Array<{ itemId: string; recoveryWrappedItemKey: string }> = [];
+          for (const item of needBackfill) {
+            try {
+              const itemKey = await getItemKey(item, healCtx);
+              const rec = await wrapItemKeyForRecovery(itemKey, healCtx);
+              if (rec) entries.push({ itemId: item.id, recoveryWrappedItemKey: rec });
+            } catch { /* skip items we can't unwrap */ }
+          }
+          if (entries.length) await passVaultApi.recoveryBackfill(entries);
+        }
+        if (needRekey.length) {
+          const entries: Array<{ itemId: string; ownerEncryptedItemKey: string; ownerItemKeyIv: string }> = [];
+          for (const item of needRekey) {
+            try {
+              const itemKey = await getItemKey(item, healCtx);
+              const wrapped = await wrapItemKey(itemKey, vault.masterKey);
+              entries.push({ itemId: item.id, ownerEncryptedItemKey: wrapped.encryptedItemKey, ownerItemKeyIv: wrapped.itemKeyIv });
+            } catch { /* skip */ }
+          }
+          if (entries.length) await passVaultApi.rekeyOwner(entries);
+        }
+        await refreshAll();
+      } catch { /* self-heal is best-effort */ } finally {
+        healingRef.current = false;
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, orgRecoveryPublicKey]);
 
   const showToast = (tone: 'success' | 'danger' | 'info', message: string) => setToast({ tone, message });
 
@@ -163,7 +219,29 @@ export function Dashboard({
 
   const canManageUsers = currentRole !== 'user';
 
-  const ctx: VaultContext = { user: session.user, masterKey: vault.masterKey, privateKey: vault.privateKey, refresh: refreshAll };
+  // Change a user's role; when promoting to super-admin, also grant them the org
+  // recovery key (best-effort — needs recovery configured + our private key).
+  const handleChangeRole = useCallback(async (u: ApiUser, role: 'super_admin' | 'admin' | 'manager' | 'user') => {
+    await passVaultApi.updateUserRole(u.id, role);
+    if (role === 'super_admin') {
+      try {
+        const [{ grant }, { users: recUsers }] = await Promise.all([
+          passVaultApi.recoveryGrant(),
+          passVaultApi.recoveryUsers(),
+        ]);
+        const targetUser = recUsers.find((x) => x.id === u.id);
+        if (grant && targetUser?.publicKey && vault.privateKey) {
+          const orgPrivateKey = await unwrapOrgPrivateKey(grant, vault.privateKey);
+          const wrapped = await wrapOrgPrivateKeyForAdmin(orgPrivateKey, targetUser.publicKey);
+          await passVaultApi.recoveryGrantTo({ userId: u.id, ...wrapped });
+        }
+      } catch { /* recovery may be unconfigured; safe to ignore */ }
+    }
+    showToast('success', `Role changed to ${role}.`);
+    refreshAll();
+  }, [vault.privateKey, refreshAll]);
+
+  const ctx: VaultContext = { user: session.user, masterKey: vault.masterKey, privateKey: vault.privateKey, orgRecoveryPublicKey, refresh: refreshAll };
 
   return (
     <div className="app-shell">
@@ -339,11 +417,7 @@ export function Dashboard({
               refreshAll();
             }}
             onDelete={(user) => setTransferTarget({ user })}
-            onChangeRole={async (u, role) => {
-              await passVaultApi.updateUserRole(u.id, role);
-              showToast('success', `Role changed to ${role}.`);
-              refreshAll();
-            }}
+            onChangeRole={handleChangeRole}
           />
         )}
 
@@ -364,12 +438,12 @@ export function Dashboard({
               refreshAll();
             }}
             onDelete={(user) => setTransferTarget({ user })}
-            onChangeRole={async (u, role) => {
-              await passVaultApi.updateUserRole(u.id, role);
-              showToast('success', `Role changed to ${role}.`);
-              refreshAll();
-            }}
+            onChangeRole={handleChangeRole}
           />
+        )}
+
+        {canManageUsers && activePanel === 'dashboard' && scope === 'team' && (
+          <UserPasswordStats stats={userStats} />
         )}
       </main>
 
@@ -444,9 +518,14 @@ export function Dashboard({
         <TransferDeleteModal
           target={transferTarget.user}
           candidates={users.filter((u) => u.id !== transferTarget.user.id)}
+          ctx={ctx}
           onClose={() => setTransferTarget(null)}
-          onDeleted={(count) => {
-            showToast('success', `User deleted; ${count} items transferred.`);
+          onDeleted={(result) => {
+            const warn = result.unrecoverableItemCount > 0
+              ? ` (${result.unrecoverableItemCount} could not be made readable — no recovery copy)`
+              : '';
+            showToast(result.unrecoverableItemCount > 0 ? 'info' : 'success',
+              `User deleted; ${result.securedItemCount}/${result.transferredItemCount} items transferred securely${warn}.`);
             setTransferTarget(null);
             refreshAll();
           }}

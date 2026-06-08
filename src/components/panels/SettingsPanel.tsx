@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Key } from 'lucide-react';
+import { Key, ShieldCheck } from 'lucide-react';
 import {
   passVaultApi, type ApiExtensionDevice, type ApiSession, type ApiUser, type ApiVaultItem,
 } from '../../api/passVaultApi';
+import { generateOrgRecoveryKeypair, wrapOrgPrivateKeyForAdmin } from '../../crypto/vaultCrypto';
 import type { VaultContext } from '../../lib/appTypes';
 import { roleLabels, toDashboardRole } from '../../lib/constants';
 import { Badge } from '../ui/Badge';
@@ -25,16 +26,47 @@ export function SettingsPanel({
 
   const [changeMasterOpen, setChangeMasterOpen] = useState(false);
 
+  const isSuperAdmin = ctx.user.role === 'super_admin';
+  const [recoveryConfigured, setRecoveryConfigured] = useState<boolean | null>(null);
+  const [recoverySaving, setRecoverySaving] = useState(false);
+  const [recoveryMsg, setRecoveryMsg] = useState('');
+
   const refreshSettings = useCallback(async () => {
-    const [s, d, t] = await Promise.all([
+    const [s, d, t, r] = await Promise.all([
       passVaultApi.listSessions().catch(() => ({ sessions: [] })),
       passVaultApi.listExtensionDevices().catch(() => ({ devices: [] })),
       passVaultApi.totpStatus().catch(() => ({ enabled: false })),
+      passVaultApi.recoveryStatus().catch(() => ({ configured: false })),
     ]);
     setSessions(s.sessions);
     setDevices(d.devices);
     setTotpEnabled(t.enabled);
+    setRecoveryConfigured(r.configured);
   }, []);
+
+  const setupRecovery = async () => {
+    setRecoverySaving(true);
+    setRecoveryMsg('');
+    try {
+      const { users } = await passVaultApi.recoveryUsers();
+      const superAdmins = users.filter((u) => u.role === 'super_admin' && u.publicKey);
+      if (!superAdmins.length) throw new Error('No super-admins with encryption keys found.');
+      const ork = await generateOrgRecoveryKeypair();
+      const grants = [];
+      for (const admin of superAdmins) {
+        const wrapped = await wrapOrgPrivateKeyForAdmin(ork.privateKey, admin.publicKey);
+        grants.push({ userId: admin.id, ...wrapped });
+      }
+      await passVaultApi.recoverySetup({ publicKey: ork.publicKey, grants });
+      setRecoveryConfigured(true);
+      setRecoveryMsg(`Configured — ${grants.length} super-admin(s) can recover. New items now get a recovery copy automatically.`);
+      ctx.refresh();
+    } catch (err) {
+      setRecoveryMsg(err instanceof Error ? err.message : 'Setup failed');
+    } finally {
+      setRecoverySaving(false);
+    }
+  };
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { refreshSettings(); }, [refreshSettings]);
@@ -74,6 +106,27 @@ export function SettingsPanel({
           <button className="ghost-button" onClick={() => setChangeMasterOpen(true)}><Key size={14} /> Change Master Password</button>
         </div>
       </article>
+
+      {isSuperAdmin && (
+        <article className="panel-card">
+          <p className="eyebrow">Organization</p>
+          <h3>Recovery key</h3>
+          <p className="muted">
+            Lets a super-admin transfer a departing user's credentials to another user so the new
+            owner can actually open them. Set this up before deleting users who own saved credentials.
+          </p>
+          {recoveryConfigured === null ? (
+            <p className="muted">Checking…</p>
+          ) : recoveryConfigured ? (
+            <p className="success-text"><ShieldCheck size={16} /> Organization recovery is configured.</p>
+          ) : (
+            <button className="primary-button" onClick={setupRecovery} disabled={recoverySaving}>
+              {recoverySaving ? 'Setting up…' : 'Set up organization recovery'}
+            </button>
+          )}
+          {recoveryMsg && <p className="muted" style={{ marginTop: '0.5rem' }}>{recoveryMsg}</p>}
+        </article>
+      )}
 
       <article className="panel-card">
         <p className="eyebrow">Two-Factor Authentication</p>

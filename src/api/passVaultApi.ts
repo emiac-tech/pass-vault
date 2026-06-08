@@ -33,6 +33,8 @@ export interface ApiVaultItem extends EncryptedPayload {
   permission: 'use_only' | 'view' | 'edit' | 'manage';
   encryptedItemKey: string;
   itemKeyIv: string;
+  recoveryWrappedItemKey?: string | null;
+  ownerKeyWrap?: 'master' | 'rsa';
   favorite: boolean;
   shareCount?: number;
   notesPreview?: string | null;
@@ -118,6 +120,7 @@ export interface CreateVaultItemInput extends EncryptedPayload {
   folderId?: string | null;
   ownerEncryptedItemKey: string;
   ownerItemKeyIv: string;
+  recoveryWrappedItemKey?: string;
   tagIds?: string[];
   notesPreview?: string;
 }
@@ -129,6 +132,7 @@ export interface UpdateVaultItemInput extends Partial<EncryptedPayload> {
   folderId?: string | null;
   ownerEncryptedItemKey?: string;
   ownerItemKeyIv?: string;
+  recoveryWrappedItemKey?: string;
   favorite?: boolean;
   tagIds?: string[];
   notesPreview?: string;
@@ -264,11 +268,55 @@ export class PassVaultApi {
     return this.request<{ user: ApiUser }>(`/users/${userId}/role`, { method: 'PATCH', body: { role } });
   }
 
-  deleteUser(userId: string, transferToUserId: string) {
-    return this.request<{ transferredItemCount: number }>(`/users/${userId}`, {
+  deleteUser(userId: string, transferToUserId: string, rewrappedItems: Array<{ itemId: string; ownerEncryptedItemKey: string }> = []) {
+    return this.request<{ transferredItemCount: number; securedItemCount: number; unrecoverableItemCount: number }>(`/users/${userId}`, {
       method: 'DELETE',
-      body: { transferToUserId },
+      body: { transferToUserId, rewrappedItems },
     });
+  }
+
+  transferUserItems(userId: string, transferToUserId: string, rewrappedItems: Array<{ itemId: string; ownerEncryptedItemKey: string }> = []) {
+    return this.request<{ transferredItemCount: number; securedItemCount: number; unrecoverableItemCount: number }>(`/users/${userId}/transfer-items`, {
+      method: 'POST',
+      body: { transferToUserId, rewrappedItems },
+    });
+  }
+
+  // ---- organization recovery key ----
+  recoveryStatus() {
+    return this.request<{ configured: boolean }>('/recovery/status');
+  }
+
+  recoveryPublicKey() {
+    return this.request<{ publicKey: string | null }>('/recovery/public-key');
+  }
+
+  recoveryUsers() {
+    return this.request<{ users: Array<{ id: string; name: string; email: string; role: string; publicKey: string }> }>('/recovery/users');
+  }
+
+  recoveryGrant() {
+    return this.request<{ grant: { encryptedPrivateKey: string; privateKeyIv: string; wrappedDek: string } | null }>('/recovery/grant');
+  }
+
+  recoverySetup(body: { publicKey: string; grants: Array<{ userId: string; encryptedPrivateKey: string; privateKeyIv: string; wrappedDek: string }> }) {
+    return this.request<{ configured: boolean; grants: number }>('/recovery/setup', { method: 'POST', body });
+  }
+
+  recoveryGrantTo(body: { userId: string; encryptedPrivateKey: string; privateKeyIv: string; wrappedDek: string }) {
+    return this.request<{ granted: boolean }>('/recovery/grant', { method: 'POST', body });
+  }
+
+  recoveryUserItems(userId: string) {
+    return this.request<{ items: Array<{ itemId: string; title: string; recoveryWrappedItemKey: string | null }> }>(`/recovery/user/${userId}/items`);
+  }
+
+  recoveryBackfill(items: Array<{ itemId: string; recoveryWrappedItemKey: string }>) {
+    return this.request<{ updated: number }>('/vault/items/recovery-backfill', { method: 'POST', body: { items } });
+  }
+
+  rekeyOwner(items: Array<{ itemId: string; ownerEncryptedItemKey: string; ownerItemKeyIv: string }>) {
+    return this.request<{ updated: number }>('/vault/items/rekey-owner', { method: 'POST', body: { items } });
   }
 
   // ---- vault items ----
@@ -387,6 +435,11 @@ export class PassVaultApi {
   teamMetrics() {
     return this.request<{ totalUsers: number; totalItems: number; activeShares: number; auditEventsToday: number }>(
       '/dashboard/team-metrics',
+    );
+  }
+  userStats() {
+    return this.request<{ stats: Array<{ id: string; name: string; email: string; role: string; status: string; savedCount: number; sharedCount: number }> }>(
+      '/dashboard/user-stats',
     );
   }
   // ---- audit ----

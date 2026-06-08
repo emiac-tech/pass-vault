@@ -644,6 +644,51 @@ h4 { font-size: 0.95rem; font-weight: 700; }
 .cat-value { display: flex; align-items: baseline; gap: 0.4rem; justify-content: flex-end; min-width: 3.75rem; font-weight: 800; font-size: 1rem; }
 .cat-value small { color: var(--pv-text-faint); font-weight: 600; font-size: 0.72rem; }
 
+/* Per-user saved/shared password breakdown table */
+.user-stats-card { margin-top: 1rem; }
+.user-stats-table { margin-top: 1.1rem; display: grid; gap: 0.4rem; }
+.user-stats-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) minmax(110px, 1fr) minmax(90px, 0.6fr) minmax(90px, 0.6fr);
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--pv-border);
+  border-radius: 0.85rem;
+  background: var(--pv-inset-soft);
+}
+.user-stats-head {
+  border: 0;
+  background: transparent;
+  padding: 0 0.85rem;
+  color: var(--pv-text-faint);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.user-stats-row.is-inactive { opacity: 0.55; }
+.user-stats-id { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+.user-stats-avatar {
+  flex: 0 0 auto;
+  width: 2rem; height: 2rem;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  background: var(--pv-brand);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+.user-stats-who { display: grid; min-width: 0; }
+.user-stats-who strong { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-stats-who span { color: var(--pv-text-faint); font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-stats-row .num { display: flex; align-items: center; gap: 0.35rem; font-weight: 800; font-size: 0.95rem; }
+.user-stats-head.user-stats-row .num { font-weight: 700; font-size: 0.74rem; }
+@media (max-width: 720px) {
+  .user-stats-row { grid-template-columns: minmax(0, 2fr) minmax(70px, 0.6fr) minmax(70px, 0.6fr); }
+  .user-stats-row > span:nth-child(2):not(.num) { display: none; }
+}
+
 .wide-card, .panel-card { padding: 1.3rem 1.4rem; }
 .wide-card { grid-column: span 2; }
 

@@ -6,7 +6,7 @@ import {
   type VaultSecretPayload,
 } from '../../crypto/vaultCrypto';
 import type { VaultContext } from '../../lib/appTypes';
-import { decryptItemPayload, getItemKey } from '../../lib/vaultHelpers';
+import { decryptItemPayload, getItemKey, wrapItemKeyForRecovery } from '../../lib/vaultHelpers';
 import { vaultItemTypeLabels, type VaultItemType } from '../../types';
 import { Badge } from '../ui/Badge';
 import { ModalShell } from '../ui/ModalShell';
@@ -89,6 +89,7 @@ export function VaultItemModal({
       }
       const encrypted = await encryptVaultPayload(secret, itemKey);
       const wrapped = await wrapItemKey(itemKey, ctx.masterKey);
+      const recoveryWrappedItemKey = await wrapItemKeyForRecovery(itemKey, ctx);
       const previewSource = type === 'secure_note' ? (secret.notes ?? '') : (secret.username ?? '');
       const notesPreview = previewSource.slice(0, 80);
       if (mode === 'create') {
@@ -97,6 +98,7 @@ export function VaultItemModal({
           ...encrypted,
           ownerEncryptedItemKey: wrapped.encryptedItemKey,
           ownerItemKeyIv: wrapped.itemKeyIv,
+          recoveryWrappedItemKey,
           tagIds: selectedTags,
           notesPreview,
         });
@@ -107,6 +109,7 @@ export function VaultItemModal({
           ...encrypted,
           ownerEncryptedItemKey: wrapped.encryptedItemKey,
           ownerItemKeyIv: wrapped.itemKeyIv,
+          recoveryWrappedItemKey,
           tagIds: selectedTags,
           notesPreview,
         });

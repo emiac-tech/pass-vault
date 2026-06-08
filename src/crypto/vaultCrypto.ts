@@ -154,6 +154,70 @@ export async function unwrapPrivateKey(
   );
 }
 
+// ---- organization recovery key (ORK) ----
+//
+// One org RSA keypair recovers any user's items. The public key makes a recovery
+// copy of every item key; the private key is hybrid-wrapped (AES-GCM + RSA) to
+// each super-admin's user public key, so a super-admin can recover it after unlock.
+
+export interface OrgRecoveryKeypair {
+  publicKey: string;        // base64url SPKI
+  privateKey: CryptoKey;    // RSA-OAEP private key (extractable, decrypt)
+}
+
+export interface WrappedOrgPrivateKey {
+  encryptedPrivateKey: string;  // AES-GCM ciphertext of the org PKCS8 private key
+  privateKeyIv: string;         // IV for the AES-GCM wrap
+  wrappedDek: string;           // the AES DEK, RSA-wrapped to a super-admin's public key
+}
+
+export async function generateOrgRecoveryKeypair(): Promise<OrgRecoveryKeypair> {
+  const pair = await crypto.subtle.generateKey(
+    { name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true,
+    ['encrypt', 'decrypt'],
+  );
+  const spki = new Uint8Array(await crypto.subtle.exportKey('spki', pair.publicKey));
+  return { publicKey: toBase64Url(spki), privateKey: pair.privateKey };
+}
+
+// Hybrid-wrap the org private key for one super-admin: AES-GCM encrypt the PKCS8,
+// then RSA-wrap the AES DEK to that admin's public key (PKCS8 is too big for raw RSA).
+export async function wrapOrgPrivateKeyForAdmin(
+  orgPrivateKey: CryptoKey,
+  adminPublicKey: string,
+): Promise<WrappedOrgPrivateKey> {
+  const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', orgPrivateKey));
+  const dek = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, dek, pkcs8));
+
+  const rawDek = new Uint8Array(await crypto.subtle.exportKey('raw', dek));
+  const recipient = await importPublicKey(adminPublicKey);
+  const wrappedDek = new Uint8Array(await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, recipient, rawDek));
+
+  return {
+    encryptedPrivateKey: toBase64Url(encrypted),
+    privateKeyIv: toBase64Url(iv),
+    wrappedDek: toBase64Url(wrappedDek),
+  };
+}
+
+export async function unwrapOrgPrivateKey(
+  wrapped: WrappedOrgPrivateKey,
+  adminRsaPrivateKey: CryptoKey,
+): Promise<CryptoKey> {
+  const rawDek = await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, adminRsaPrivateKey, fromBase64Url(wrapped.wrappedDek));
+  const dek = await crypto.subtle.importKey('raw', rawDek, { name: 'AES-GCM' }, false, ['decrypt']);
+  const pkcs8 = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: fromBase64Url(wrapped.privateKeyIv) },
+    dek,
+    fromBase64Url(wrapped.encryptedPrivateKey),
+  );
+  // Extractable so a super-admin can re-grant the org key to another super-admin.
+  return crypto.subtle.importKey('pkcs8', pkcs8, { name: 'RSA-OAEP', hash: 'SHA-256' }, true, ['decrypt']);
+}
+
 // ---- item keys ----
 
 export async function generateItemKey() {

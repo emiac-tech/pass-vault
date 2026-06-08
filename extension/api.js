@@ -41,4 +41,5 @@ export const api = {
   listItems: () => request('/extension/items'),
   createItem: (item) => request('/extension/items', { method: 'POST', body: item }),
   updateItem: (id, item) => request(`/extension/items/${id}`, { method: 'PATCH', body: item }),
+  recoveryPublicKey: () => request('/recovery/public-key'),
 };

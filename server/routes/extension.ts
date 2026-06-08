@@ -50,6 +50,7 @@ const extensionItemSchema = z.object({
   payload_tag: z.string().min(8),
   owner_encrypted_item_key: z.string().min(8),
   owner_item_key_iv: z.string().min(8),
+  recovery_wrapped_item_key: z.string().optional(),
   notes_preview: z.string().max(120).optional(),
 });
 
@@ -61,6 +62,7 @@ const extensionUpdateSchema = z.object({
   payload_tag: z.string().min(8),
   owner_encrypted_item_key: z.string().min(8),
   owner_item_key_iv: z.string().min(8),
+  recovery_wrapped_item_key: z.string().optional(),
   notes_preview: z.string().max(120).optional(),
 });
 
@@ -177,6 +179,7 @@ router.get('/items', asyncHandler(async (request, response) => {
        vi.encrypted_payload, vi.payload_iv, vi.payload_tag,
        vi.owner_encrypted_item_key AS encrypted_item_key,
        vi.owner_item_key_iv AS item_key_iv,
+       vi.owner_key_wrap,
        'manage'::share_permission AS permission
      FROM vault_items vi
      WHERE vi.owner_id = $1 AND vi.deleted_at IS NULL
@@ -186,6 +189,7 @@ router.get('/items', asyncHandler(async (request, response) => {
        vi.encrypted_payload, vi.payload_iv, vi.payload_tag,
        vs.recipient_encrypted_item_key AS encrypted_item_key,
        vs.recipient_item_key_iv AS item_key_iv,
+       'rsa'::text AS owner_key_wrap,
        vs.permission
      FROM vault_items vi
      JOIN vault_shares vs ON vs.vault_item_id = vi.id
@@ -211,13 +215,14 @@ router.post('/items', asyncHandler(async (request, response) => {
     `INSERT INTO vault_items (
        owner_id, type, title, url,
        encrypted_payload, payload_iv, payload_tag,
-       owner_encrypted_item_key, owner_item_key_iv, notes_preview
+       owner_encrypted_item_key, owner_item_key_iv, recovery_wrapped_item_key, notes_preview
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING id, title, url, type, owner_id,
        encrypted_payload, payload_iv, payload_tag,
        owner_encrypted_item_key AS encrypted_item_key,
        owner_item_key_iv AS item_key_iv,
+       owner_key_wrap,
        'manage'::share_permission AS permission`,
     [
       device.user_id,
@@ -229,6 +234,7 @@ router.post('/items', asyncHandler(async (request, response) => {
       body.payload_tag,
       body.owner_encrypted_item_key,
       body.owner_item_key_iv,
+      body.recovery_wrapped_item_key ?? null,
       body.notes_preview ?? null,
     ],
   );
@@ -283,13 +289,15 @@ router.patch('/items/:id', asyncHandler(async (request, response) => {
        payload_tag = $5,
        owner_encrypted_item_key = $6,
        owner_item_key_iv = $7,
-       notes_preview = COALESCE($8, notes_preview),
+       recovery_wrapped_item_key = COALESCE($8, recovery_wrapped_item_key),
+       notes_preview = COALESCE($9, notes_preview),
        updated_at = now()
-     WHERE id = $9 AND owner_id = $10
+     WHERE id = $10 AND owner_id = $11
      RETURNING id, title, url, type, owner_id,
        encrypted_payload, payload_iv, payload_tag,
        owner_encrypted_item_key AS encrypted_item_key,
        owner_item_key_iv AS item_key_iv,
+       owner_key_wrap,
        'manage'::share_permission AS permission`,
     [
       body.title ?? null,
@@ -299,6 +307,7 @@ router.patch('/items/:id', asyncHandler(async (request, response) => {
       body.payload_tag,
       body.owner_encrypted_item_key,
       body.owner_item_key_iv,
+      body.recovery_wrapped_item_key ?? null,
       body.notes_preview ?? null,
       itemId,
       device.user_id,

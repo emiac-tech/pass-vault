@@ -184,9 +184,16 @@ Pass Vault has four roles, from most to least privileged:
 | **Manager** | Standard user with some elevated team visibility |
 | **User** | Manage their own vault and items shared with them |
 
-**Important:** *No role lets you read other people's passwords.* Even a Super Admin only sees the
-contents of items they personally own or that have been shared with them. Administration is about
-**managing access and people**, not viewing secrets.
+**Important:** Day-to-day, no role lets you read other people's passwords — an Admin only sees the
+contents of items they personally own or that have been shared with them.
+
+**One deliberate exception — the Organization Recovery Key.** So that a departing employee's
+credentials are never lost, a **Super Admin** can transfer any user's items to another user, and the
+new owner can then open them. This is powered by an organization recovery key, which means a Super
+Admin has the technical ability to recover (and therefore decrypt) any user's credentials. This is a
+standard enterprise capability (the same model used by Zoho Vault, Bitwarden, etc.). The recovery key
+is set up once and is itself protected by each Super Admin's own master password — the server never
+holds a key that can read your vault.
 
 ---
 
@@ -280,8 +287,10 @@ committed to the codebase.
 ## 13. Frequently asked questions
 
 **Can administrators see my passwords?**
-No. Roles control who can *manage users and access*, not who can *read secrets*. Even a Super Admin can
-only open items they own or that are shared with them.
+Regular admins cannot — roles control who can *manage users and access*, not who can *read secrets*.
+The one exception is the **Super Admin**, who holds the Organization Recovery Key so that credentials
+can be transferred when an employee leaves; this gives a Super Admin the ability to recover (and decrypt)
+any user's items. The server itself never holds a key that can read your vault.
 
 **What happens if I forget my master password?**
 Because of the zero-knowledge design, your master password is the only thing that can unlock your vault.

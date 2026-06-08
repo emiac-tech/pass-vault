@@ -5,7 +5,7 @@ import {
 } from '../../crypto/vaultCrypto';
 import type { VaultContext } from '../../lib/appTypes';
 import { permissionDescriptions, permissionLabels } from '../../lib/constants';
-import { decryptItemPayload, getItemKey } from '../../lib/vaultHelpers';
+import { decryptItemPayload, getItemKey, wrapItemKeyForRecovery } from '../../lib/vaultHelpers';
 import { Badge } from '../ui/Badge';
 import { ModalShell } from '../ui/ModalShell';
 
@@ -54,11 +54,13 @@ export function ShareModal({
         itemKey = await generateItemKey();
         const encrypted = await encryptVaultPayload(payload, itemKey);
         const wrappedOwnerKey = await wrapItemKey(itemKey, ctx.masterKey);
+        const recoveryWrappedItemKey = await wrapItemKeyForRecovery(itemKey, ctx);
         const previewSource = item.type === 'secure_note' ? (payload.notes ?? '') : (payload.username ?? '');
         await passVaultApi.updateVaultItem(item.id, {
           ...encrypted,
           ownerEncryptedItemKey: wrappedOwnerKey.encryptedItemKey,
           ownerItemKeyIv: wrappedOwnerKey.itemKeyIv,
+          recoveryWrappedItemKey,
           notesPreview: previewSource.slice(0, 80),
         });
       }

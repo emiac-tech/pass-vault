@@ -103,6 +103,17 @@ export async function wrapItemKey(itemKey, wrappingKey) {
   };
 }
 
+export async function importPublicKey(publicKey) {
+  return crypto.subtle.importKey('spki', fromBase64Url(publicKey), { name: 'RSA-OAEP', hash: 'SHA-256' }, true, ['encrypt']);
+}
+
+// Wrap an item key to a public key (RSA-OAEP). Used to add the org recovery copy.
+export async function wrapItemKeyForRecipient(itemKey, recipientPublicKey) {
+  const raw = await crypto.subtle.exportKey('raw', itemKey);
+  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, recipientPublicKey, raw));
+  return toBase64Url(encrypted);
+}
+
 export function generatePassword(options = {}) {
   const { length = 20, upper = true, lower = true, digits = true, symbols = true, excludeAmbiguous = true } = options;
   const UPPER = 'ABCDEFGHJKLMNPQRSTUVWXYZ' + (excludeAmbiguous ? '' : 'IO');

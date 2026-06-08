@@ -18,5 +18,8 @@ export interface VaultContext {
   user: ApiUser;
   masterKey: CryptoKey;
   privateKey: CryptoKey | null;
+  // Org recovery public key (base64url SPKI), if configured — used to add a
+  // recovery copy of each item key so a super-admin can transfer ownership.
+  orgRecoveryPublicKey?: string | null;
   refresh: () => Promise<void>;
 }

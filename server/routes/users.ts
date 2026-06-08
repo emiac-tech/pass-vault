@@ -41,9 +41,57 @@ const createUserSchema = z.object({
   masterKeySalt: z.string().min(1),
 });
 
+const rewrappedItemSchema = z.object({
+  itemId: z.string().uuid(),
+  ownerEncryptedItemKey: z.string().min(8),
+});
+
 const deleteSchema = z.object({
   transferToUserId: z.string().uuid(),
+  // Item keys re-wrapped (by the super-admin's browser, via the org recovery key)
+  // to the new owner's RSA public key. Items not listed are still re-assigned by
+  // owner_id but stay encrypted to the old key (inaccessible) — the client warns.
+  rewrappedItems: z.array(rewrappedItemSchema).default([]),
 });
+
+const transferItemsSchema = z.object({
+  transferToUserId: z.string().uuid(),
+  rewrappedItems: z.array(rewrappedItemSchema).default([]),
+});
+
+// Re-assign every vault item owned by `fromUserId` to `toUserId`. Items with a
+// re-wrapped key become decryptable by the new owner (owner_key_wrap='rsa');
+// the rest are moved by owner_id only (so the FK lets us delete the user) and
+// remain inaccessible until the original owner's key is recovered.
+async function reassignItems(
+  client: import('pg').PoolClient,
+  fromUserId: string,
+  toUserId: string,
+  rewrapped: Array<{ itemId: string; ownerEncryptedItemKey: string }>,
+) {
+  const total = await client.query<{ count: string }>(
+    `SELECT count(*) FROM vault_items WHERE owner_id = $1`,
+    [fromUserId],
+  );
+  let secured = 0;
+  for (const entry of rewrapped) {
+    const result = await client.query(
+      `UPDATE vault_items SET
+         owner_id = $1, owner_encrypted_item_key = $2, owner_item_key_iv = '',
+         owner_key_wrap = 'rsa', updated_at = now()
+       WHERE id = $3 AND owner_id = $4`,
+      [toUserId, entry.ownerEncryptedItemKey, entry.itemId, fromUserId],
+    );
+    secured += result.rowCount ?? 0;
+  }
+  // Move anything still owned by the departing user (no recovery copy available).
+  const moved = await client.query(
+    `UPDATE vault_items SET owner_id = $1, updated_at = now() WHERE owner_id = $2`,
+    [toUserId, fromUserId],
+  );
+  const totalCount = Number(total.rows[0]?.count ?? 0);
+  return { totalCount, securedCount: secured, unrecoverableCount: totalCount - secured, movedNow: moved.rowCount ?? 0 };
+}
 
 function sanitizeUser(user: DbUser) {
   return {
@@ -267,24 +315,16 @@ router.delete('/:id', requireRoles(...adminRoles), asyncHandler(async (request, 
   }
 
   const result = await withTransaction(async (client) => {
-    const transferCount = await client.query<{ count: string }>(
-      `SELECT count(*) FROM vault_items WHERE owner_id = $1 AND deleted_at IS NULL`,
-      [userId],
-    );
-
-    await client.query(
-      `UPDATE vault_items SET owner_id = $1, updated_at = now() WHERE owner_id = $2`,
-      [body.transferToUserId, userId],
-    );
+    const counts = await reassignItems(client, userId, body.transferToUserId, body.rewrappedItems);
 
     await client.query(
       `INSERT INTO password_transfer_logs (from_user_id, to_user_id, transferred_by, item_count)
        VALUES ($1, $2, $3, $4)`,
-      [userId, body.transferToUserId, request.user?.id, Number(transferCount.rows[0]?.count ?? 0)],
+      [userId, body.transferToUserId, request.user?.id, counts.totalCount],
     );
 
     const deleted = await client.query<DbUser>('DELETE FROM users WHERE id = $1 RETURNING *', [userId]);
-    return { deletedUser: deleted.rows[0], itemCount: Number(transferCount.rows[0]?.count ?? 0) };
+    return { deletedUser: deleted.rows[0], counts };
   });
 
   if (!result.deletedUser) {
@@ -298,13 +338,61 @@ router.delete('/:id', requireRoles(...adminRoles), asyncHandler(async (request, 
     targetType: 'user',
     targetId: userId,
     risk: 'high',
-    metadata: { transferToUserId: body.transferToUserId, itemCount: result.itemCount },
+    metadata: {
+      transferToUserId: body.transferToUserId,
+      itemCount: result.counts.totalCount,
+      securedCount: result.counts.securedCount,
+      unrecoverableCount: result.counts.unrecoverableCount,
+    },
   });
 
   response.json({
     deletedUser: sanitizeUser(result.deletedUser),
     transferredToUserId: body.transferToUserId,
-    transferredItemCount: result.itemCount,
+    transferredItemCount: result.counts.totalCount,
+    securedItemCount: result.counts.securedCount,
+    unrecoverableItemCount: result.counts.unrecoverableCount,
+  });
+}));
+
+// Transfer a user's items to another user WITHOUT deleting them (e.g. after deactivation).
+router.post('/:id/transfer-items', requireRoles(...adminRoles), asyncHandler(async (request, response) => {
+  const body = transferItemsSchema.parse(request.body);
+  const userId = String(request.params.id);
+  if (userId === body.transferToUserId) {
+    response.status(400).json({ error: 'Transfer target must be another user' });
+    return;
+  }
+
+  const counts = await withTransaction(async (client) => {
+    const c = await reassignItems(client, userId, body.transferToUserId, body.rewrappedItems);
+    await client.query(
+      `INSERT INTO password_transfer_logs (from_user_id, to_user_id, transferred_by, item_count)
+       VALUES ($1, $2, $3, $4)`,
+      [userId, body.transferToUserId, request.user?.id, c.totalCount],
+    );
+    return c;
+  });
+
+  await writeAuditLog({
+    actorId: request.user?.id,
+    action: 'transferred_vault_items',
+    targetType: 'user',
+    targetId: userId,
+    risk: 'high',
+    metadata: {
+      transferToUserId: body.transferToUserId,
+      itemCount: counts.totalCount,
+      securedCount: counts.securedCount,
+      unrecoverableCount: counts.unrecoverableCount,
+    },
+  });
+
+  response.json({
+    transferredToUserId: body.transferToUserId,
+    transferredItemCount: counts.totalCount,
+    securedItemCount: counts.securedCount,
+    unrecoverableItemCount: counts.unrecoverableCount,
   });
 }));
 

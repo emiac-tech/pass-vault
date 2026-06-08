@@ -9,6 +9,7 @@
 import {
   deriveMasterKey, unwrapPrivateKey, unwrapItemKey, unwrapItemKeyWithPrivate,
   decryptVaultPayload, generateItemKey, encryptVaultPayload, wrapItemKey, fromBase64Url,
+  importPublicKey, wrapItemKeyForRecipient,
 } from './crypto.js';
 import { api } from './api.js';
 
@@ -19,6 +20,23 @@ let cachedUser = null;
 let cachedDecrypted = new Map(); // itemId -> { username, password, url, ... }
 let unlockedAt = 0;
 let itemsFetchedAt = 0;
+let orgRecoveryPublicKey = null;
+
+// Wrap an item key to the org recovery public key (fetched + cached once), so the
+// item can be transferred by a super-admin. Returns undefined if recovery is off.
+async function recoveryCopyFor(itemKey) {
+  try {
+    if (orgRecoveryPublicKey === null) {
+      const result = await api.recoveryPublicKey();
+      orgRecoveryPublicKey = result?.publicKey || '';
+    }
+    if (!orgRecoveryPublicKey) return undefined;
+    const pub = await importPublicKey(orgRecoveryPublicKey);
+    return await wrapItemKeyForRecipient(itemKey, pub);
+  } catch {
+    return undefined;
+  }
+}
 
 function lock() {
   masterKey = null;
@@ -105,10 +123,12 @@ async function decryptOne(item) {
   let payload;
   try {
     let itemKey;
-    if (item.owner_id === cachedUser.id) {
+    // Owner copy is normally master-key wrapped, EXCEPT right after a recovery
+    // transfer (owner_key_wrap='rsa') — then it's RSA-wrapped to this owner's key.
+    if (item.owner_id === cachedUser.id && item.owner_key_wrap !== 'rsa') {
       itemKey = await unwrapItemKey(item.encrypted_item_key, item.item_key_iv, masterKey);
     } else {
-      if (!privateKey) throw new Error('Cannot read shared item — no RSA private key.');
+      if (!privateKey) throw new Error('Cannot read this item — no RSA private key.');
       itemKey = await unwrapItemKeyWithPrivate(item.encrypted_item_key, privateKey);
     }
     payload = await decryptVaultPayload(item, itemKey);
@@ -262,12 +282,14 @@ async function saveCapturedCredential(credential) {
     notes: 'Saved from Pass Vault browser extension.',
   }, itemKey);
   const wrapped = await wrapItemKey(itemKey, masterKey);
+  const recovery_wrapped_item_key = await recoveryCopyFor(itemKey);
   const result = await api.createItem({
     title,
     url: credential.url || '',
     type: 'website_login',
     ...encrypted,
     ...wrapped,
+    recovery_wrapped_item_key,
     notes_preview: credential.username || 'Saved from browser',
   });
   await refreshItems();
@@ -338,11 +360,13 @@ async function updateCapturedCredential(itemId, credential) {
   };
   const encrypted = await encryptVaultPayload(payload, itemKey);
   const wrapped = await wrapItemKey(itemKey, masterKey);
+  const recovery_wrapped_item_key = await recoveryCopyFor(itemKey);
   const result = await api.updateItem(itemId, {
     title: item.title,
     url: credential.url || item.url || '',
     ...encrypted,
     ...wrapped,
+    recovery_wrapped_item_key,
     notes_preview: String(credential.username || existing.username || 'Updated from browser').slice(0, 120),
   });
   await refreshItems();

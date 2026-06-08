@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
-import { asyncHandler, requireAuth } from '../middleware.js';
+import { asyncHandler, requireAuth, requireRoles } from '../middleware.js';
 
 const router = Router();
 
@@ -87,6 +87,29 @@ router.get('/team-metrics', asyncHandler(async (_request, response) => {
     totalItems: Number(items.rows[0].count),
     activeShares: Number(shares.rows[0].count),
     auditEventsToday: Number(audits.rows[0].count),
+  });
+}));
+
+// Org-wide per-user breakdown: how many passwords each user has saved (owns) and
+// how many they have actively shared. Counts only — never item contents. Admins only.
+router.get('/user-stats', requireRoles('super_admin', 'admin'), asyncHandler(async (_request, response) => {
+  const result = await query<Record<string, unknown>>(
+    `SELECT u.id, u.name, u.email, u.role, u.status,
+       (SELECT count(*) FROM vault_items vi WHERE vi.owner_id = u.id AND vi.deleted_at IS NULL) AS saved_count,
+       (SELECT count(*) FROM vault_shares vs WHERE vs.shared_by = u.id AND vs.revoked_at IS NULL) AS shared_count
+     FROM users u
+     ORDER BY saved_count DESC, u.name ASC`,
+  );
+  response.json({
+    stats: result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      status: row.status,
+      savedCount: Number(row.saved_count ?? 0),
+      sharedCount: Number(row.shared_count ?? 0),
+    })),
   });
 }));
 

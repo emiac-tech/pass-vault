@@ -16,6 +16,7 @@ const encryptedPayloadSchema = z.object({
   payloadTag: z.string().min(8),
   ownerEncryptedItemKey: z.string().min(8),
   ownerItemKeyIv: z.string().min(8),
+  recoveryWrappedItemKey: z.string().optional(),
   tagIds: z.array(z.string().uuid()).optional(),
   notesPreview: z.string().max(120).optional(),
 });
@@ -38,6 +39,8 @@ function rowToVaultItem(row: Record<string, unknown>) {
     payloadTag: row.payload_tag,
     encryptedItemKey: row.encrypted_item_key,
     itemKeyIv: row.item_key_iv,
+    recoveryWrappedItemKey: row.recovery_wrapped_item_key ?? null,
+    ownerKeyWrap: row.owner_key_wrap ?? 'master',
     favorite: row.favorite,
     shareCount: Number(row.share_count ?? 0),
     notesPreview: row.notes_preview,
@@ -86,6 +89,7 @@ router.get('/items', asyncHandler(async (request, response) => {
     GROUP BY c.id, c.owner_id, c.folder_id, c.type, c.title, c.url,
              c.encrypted_payload, c.payload_iv, c.payload_tag,
              c.owner_encrypted_item_key, c.owner_item_key_iv,
+             c.recovery_wrapped_item_key, c.owner_key_wrap,
              c.favorite, c.created_at, c.updated_at, c.deleted_at,
              c.notes_preview, c.permission, c.encrypted_item_key, c.item_key_iv
     ORDER BY c.updated_at DESC
@@ -128,9 +132,9 @@ router.post('/items', asyncHandler(async (request, response) => {
     `INSERT INTO vault_items (
       owner_id, folder_id, type, title, url,
       encrypted_payload, payload_iv, payload_tag,
-      owner_encrypted_item_key, owner_item_key_iv, notes_preview
+      owner_encrypted_item_key, owner_item_key_iv, recovery_wrapped_item_key, notes_preview
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     RETURNING *,
       'manage'::share_permission AS permission,
       owner_encrypted_item_key AS encrypted_item_key,
@@ -146,6 +150,7 @@ router.post('/items', asyncHandler(async (request, response) => {
       body.payloadTag,
       body.ownerEncryptedItemKey,
       body.ownerItemKeyIv,
+      body.recoveryWrappedItemKey ?? null,
       body.notesPreview ?? null,
     ],
   );
@@ -207,10 +212,11 @@ router.patch('/items/:id', asyncHandler(async (request, response) => {
       payload_tag = COALESCE($7, payload_tag),
       owner_encrypted_item_key = COALESCE($8, owner_encrypted_item_key),
       owner_item_key_iv = COALESCE($9, owner_item_key_iv),
-      favorite = COALESCE($10, favorite),
-      notes_preview = COALESCE($11, notes_preview),
+      recovery_wrapped_item_key = COALESCE($10, recovery_wrapped_item_key),
+      favorite = COALESCE($11, favorite),
+      notes_preview = COALESCE($12, notes_preview),
       updated_at = now()
-     WHERE id = $12
+     WHERE id = $13
      RETURNING *,
        'manage'::share_permission AS permission,
        owner_encrypted_item_key AS encrypted_item_key,
@@ -225,6 +231,7 @@ router.patch('/items/:id', asyncHandler(async (request, response) => {
       body.payloadTag ?? null,
       body.ownerEncryptedItemKey ?? null,
       body.ownerItemKeyIv ?? null,
+      body.recoveryWrappedItemKey ?? null,
       body.favorite ?? null,
       body.notesPreview ?? null,
       itemId,
@@ -342,6 +349,55 @@ router.get('/items/:id/versions', asyncHandler(async (request, response) => {
     [itemId],
   );
   response.json({ versions: result.rows });
+}));
+
+// Self-heal: owners add a recovery copy (item key wrapped to the org public key)
+// for their owned items that don't yet have one. Idempotent; runs on each login.
+const recoveryBackfillSchema = z.object({
+  items: z.array(z.object({
+    itemId: z.string().uuid(),
+    recoveryWrappedItemKey: z.string().min(8),
+  })).max(1000),
+});
+
+router.post('/items/recovery-backfill', asyncHandler(async (request, response) => {
+  const body = recoveryBackfillSchema.parse(request.body);
+  let updated = 0;
+  for (const entry of body.items) {
+    const result = await query(
+      `UPDATE vault_items SET recovery_wrapped_item_key = $1, updated_at = now()
+       WHERE id = $2 AND owner_id = $3 AND recovery_wrapped_item_key IS NULL AND deleted_at IS NULL`,
+      [entry.recoveryWrappedItemKey, entry.itemId, request.user?.id],
+    );
+    updated += result.rowCount ?? 0;
+  }
+  response.json({ updated });
+}));
+
+// Self-heal: after a transfer the new owner's copy is RSA-wrapped (owner_key_wrap='rsa').
+// On next login the owner re-wraps it with their master key and flips it back to 'master'.
+const rekeyOwnerSchema = z.object({
+  items: z.array(z.object({
+    itemId: z.string().uuid(),
+    ownerEncryptedItemKey: z.string().min(8),
+    ownerItemKeyIv: z.string().min(8),
+  })).max(1000),
+});
+
+router.post('/items/rekey-owner', asyncHandler(async (request, response) => {
+  const body = rekeyOwnerSchema.parse(request.body);
+  let updated = 0;
+  for (const entry of body.items) {
+    const result = await query(
+      `UPDATE vault_items SET
+         owner_encrypted_item_key = $1, owner_item_key_iv = $2,
+         owner_key_wrap = 'master', updated_at = now()
+       WHERE id = $3 AND owner_id = $4 AND owner_key_wrap = 'rsa'`,
+      [entry.ownerEncryptedItemKey, entry.ownerItemKeyIv, entry.itemId, request.user?.id],
+    );
+    updated += result.rowCount ?? 0;
+  }
+  response.json({ updated });
 }));
 
 export default router;

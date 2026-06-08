@@ -3,6 +3,7 @@ import { passVaultApi, type ApiFolder } from '../../api/passVaultApi';
 import { encryptVaultPayload, generateItemKey, wrapItemKey, type VaultSecretPayload } from '../../crypto/vaultCrypto';
 import type { VaultContext } from '../../lib/appTypes';
 import { parseCsv } from '../../lib/files';
+import { wrapItemKeyForRecovery } from '../../lib/vaultHelpers';
 import { ModalShell } from '../ui/ModalShell';
 
 export function ImportModal({
@@ -33,6 +34,7 @@ export function ImportModal({
         };
         const encrypted = await encryptVaultPayload(payload, itemKey);
         const wrapped = await wrapItemKey(itemKey, ctx.masterKey);
+        const recoveryWrappedItemKey = await wrapItemKeyForRecovery(itemKey, ctx);
         await passVaultApi.createVaultItem({
           title: row.title || row.name || row.url || 'Imported item',
           url: row.url ?? undefined,
@@ -41,6 +43,7 @@ export function ImportModal({
           ...encrypted,
           ownerEncryptedItemKey: wrapped.encryptedItemKey,
           ownerItemKeyIv: wrapped.itemKeyIv,
+          recoveryWrappedItemKey,
         });
         count += 1;
       }

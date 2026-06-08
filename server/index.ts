@@ -9,6 +9,7 @@ import authRouter from './routes/auth.js';
 import dashboardRouter from './routes/dashboard.js';
 import extensionRouter from './routes/extension.js';
 import foldersRouter from './routes/folders.js';
+import recoveryRouter from './routes/recovery.js';
 import sessionsRouter from './routes/sessions.js';
 import sharesRouter from './routes/shares.js';
 import tagsRouter from './routes/tags.js';
@@ -83,6 +84,7 @@ app.use('/api/tags', tagsRouter);
 app.use('/api/totp', totpRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/recovery', recoveryRouter);
 app.use('/api/extension', extensionRouter);
 
 // Single-container deployment: serve the built web app (dist/). The API stays
