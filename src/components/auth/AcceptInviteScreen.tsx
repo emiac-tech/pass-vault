@@ -1,16 +1,19 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Mail, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, Mail, UserPlus } from 'lucide-react';
 import { passVaultApi } from '../../api/passVaultApi';
 import { deriveMasterKey, generateUserKeypair, randomSalt } from '../../crypto/vaultCrypto';
 import { sessionStorageKey } from '../../lib/appTypes';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
+const MIN_PASSWORD = 12;
+
 export function AcceptInviteScreen({ token, onDone }: { token: string; onDone: () => void }) {
   const [invitation, setInvitation] = useState<{ email: string; role: string } | null>(null);
   const [error, setError] = useState('');
   const [name, setName] = useState('');
-  const [accountPassword, setAccountPassword] = useState('');
-  const [masterPassword, setMasterPassword] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -25,14 +28,17 @@ export function AcceptInviteScreen({ token, onDone }: { token: string; onDone: (
     setError('');
     try {
       if (!invitation) throw new Error('No invitation loaded');
-      if (masterPassword.length < 12) throw new Error('Master password must be at least 12 characters.');
+      if (password.length < MIN_PASSWORD) throw new Error(`Password must be at least ${MIN_PASSWORD} characters.`);
+      if (password !== confirmPassword) throw new Error('Passwords do not match.');
+      // One password is used for BOTH login and unlocking the vault. The user can
+      // change either independently later from Settings.
       const masterKeySalt = randomSalt();
-      const masterKey = await deriveMasterKey(masterPassword, masterKeySalt);
+      const masterKey = await deriveMasterKey(password, masterKeySalt);
       const keypair = await generateUserKeypair(masterKey);
       const result = await passVaultApi.acceptInvite({
         token,
         name,
-        password: accountPassword,
+        password,
         publicKey: keypair.publicKey,
         encryptedPrivateKey: keypair.encryptedPrivateKey,
         privateKeyIv: keypair.privateKeyIv,
@@ -58,7 +64,7 @@ export function AcceptInviteScreen({ token, onDone }: { token: string; onDone: (
           <div className="login-orb"><UserPlus size={34} /></div>
           <p className="eyebrow">Welcome to Pass Vault</p>
           <h1>Set up your account.</h1>
-          <p>You will create two passwords: an account password (to log in) and a master password (to unlock vault data). The master password never leaves your browser.</p>
+          <p>Choose one password — it logs you in <em>and</em> unlocks your vault. It never leaves your browser, and you can change your master password anytime from Settings.</p>
         </aside>
         <div className="auth-card login-card">
           <div className="auth-heading">
@@ -78,13 +84,21 @@ export function AcceptInviteScreen({ token, onDone }: { token: string; onDone: (
                   <input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} placeholder="Your full name" />
                 </label>
                 <label>
-                  Account password
-                  <input value={accountPassword} onChange={(e) => setAccountPassword(e.target.value)} type="password" required minLength={10} placeholder="At least 10 characters" />
+                  Password
+                  <div className="auth-input-reveal">
+                    <input value={password} onChange={(e) => setPassword(e.target.value)} type={showPassword ? 'text' : 'password'} required minLength={MIN_PASSWORD} placeholder="At least 12 characters" autoComplete="new-password" />
+                    <button type="button" className="auth-reveal-btn" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <small>Used to log in and to unlock your vault. We cannot recover it if you lose it.</small>
                 </label>
                 <label>
-                  Master password
-                  <input value={masterPassword} onChange={(e) => setMasterPassword(e.target.value)} type="password" required minLength={12} placeholder="At least 12 characters" />
-                  <small>This unlocks your vault. We cannot recover it if you lose it.</small>
+                  Confirm password
+                  <div className="auth-input-reveal">
+                    <input value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} type={showPassword ? 'text' : 'password'} required minLength={MIN_PASSWORD} placeholder="Re-enter your password" autoComplete="new-password" />
+                  </div>
+                  {confirmPassword.length > 0 && confirmPassword !== password && <small className="field-error">Passwords do not match.</small>}
                 </label>
                 <button className="primary-button full-width" disabled={submitting}>{submitting ? 'Generating keys...' : 'Activate Account'}</button>
               </form>

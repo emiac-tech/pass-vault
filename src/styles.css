@@ -301,6 +301,27 @@ h4 { font-size: 0.95rem; font-weight: 700; }
   background: var(--pv-inset-strong);
 }
 .auth-form small { color: var(--pv-text-muted); font-weight: 500; line-height: 1.45; font-size: 0.78rem; }
+.auth-form small.field-error { color: var(--pv-danger-text); font-weight: 600; }
+.auth-input-reveal { position: relative; display: block; }
+.auth-input-reveal input { width: 100%; padding-right: 2.8rem; }
+.auth-reveal-btn {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--pv-text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.auth-reveal-btn:hover { color: var(--pv-text-strong); background: var(--pv-inset-strong); }
 
 .error-text {
   padding: 0.75rem 0.95rem;
