@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>E-Vault Password Manager — Secure passwords for your whole team</title>
+  <meta name="description" content="E-Vault Password Manager is a zero-knowledge password manager for teams. Encrypted on your device, autofilled in your browser, shared safely with your colleagues." />
+  <link rel="icon" href="favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body id="top">
+  <div class="bg-orbs" aria-hidden="true"><span></span><span></span></div>
+
+  <!-- ====================== Header ====================== -->
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="#top" aria-label="E-Vault Password Manager">
+        <span class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1.4"/></svg>
+        </span>
+        <span class="brand-name">E-Vault<span class="brand-sub"> Password Manager</span></span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#security">Security</a>
+        <a href="#extension">Extension</a>
+        <a href="#how">How it works</a>
+      </nav>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light / dark theme"></button>
+      <a class="btn btn-primary" id="open-app-top" href="https://e-vault-app.emiactech.com">Open App ↗</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ====================== Hero ====================== -->
+    <section class="hero reveal">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <span class="pill"><span class="pill-dot"></span> Zero-knowledge · End-to-end encrypted</span>
+          <h1>Your team's passwords,<br /><span class="grad-text">encrypted end&#8209;to&#8209;end.</span></h1>
+          <p class="lead">E-Vault stores, autofills, and shares logins for your whole organization — encrypted on every device, never readable by the server.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary btn-lg" id="open-app-hero" href="https://e-vault-app.emiactech.com">Open the App ↗</a>
+            <a class="btn btn-ghost btn-lg" href="#features">Explore features</a>
+          </div>
+          <div class="hero-trust">
+            <span class="ht-ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </span>
+            No password ever leaves your device unencrypted.
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-hidden="true">
+          <div class="glow"></div>
+          <div class="vault-card">
+            <div class="vault-card-head">
+              <span class="vc-logo">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+              </span>
+              <span class="vc-title">E-Vault</span>
+              <span class="vc-status"><span class="vc-dot"></span> Unlocked</span>
+            </div>
+            <div class="vc-search">Search items…</div>
+            <div class="vc-row"><span class="vc-fav g">G</span><div><strong>github.com</strong><span>octo@team.dev</span></div><span class="vc-fill">Fill</span></div>
+            <div class="vc-row"><span class="vc-fav s">S</span><div><strong>semrush.com</strong><span>marketing@team.dev</span></div><span class="vc-fill">Fill</span></div>
+            <div class="vc-row"><span class="vc-fav a">A</span><div><strong>aws.amazon.com</strong><span>ops@team.dev</span></div><span class="vc-fill">Fill</span></div>
+            <div class="vc-foot">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+              Encrypted on this device
+            </div>
+          </div>
+          <div class="ext-chip">
+            <span class="ext-chip-ic">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            </span>
+            <span><strong>Autofilled</strong><span>by E-Vault</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== Spec strip ====================== -->
+    <section class="strip reveal">
+      <div class="container strip-grid">
+        <div><strong>AES-256-GCM</strong><span>Vault encryption</span></div>
+        <div><strong>PBKDF2 · 310k</strong><span>Key derivation</span></div>
+        <div><strong>RSA-2048</strong><span>Secure sharing</span></div>
+        <div><strong>Zero-knowledge</strong><span>Server never sees keys</span></div>
+      </div>
+    </section>
+
+    <!-- ====================== Features ====================== -->
+    <section id="features" class="section reveal">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Features</p>
+          <h2>Everything your team needs to manage passwords.</h2>
+          <p class="section-sub">From everyday autofill to organization-wide control — without ever exposing a secret.</p>
+        </div>
+        <div class="cards">
+          <article class="card">
+            <span class="card-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+            </span>
+            <h3>Autofill &amp; capture</h3>
+            <p>The browser extension fills saved logins and offers to save new ones as you sign in — including multi-step (email-then-password) logins.</p>
+          </article>
+          <article class="card">
+            <span class="card-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            </span>
+            <h3>Zero-knowledge</h3>
+            <p>Everything is encrypted on your device before it reaches the server. Your master password never leaves your browser.</p>
+          </article>
+          <article class="card">
+            <span class="card-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <h3>Secure team sharing</h3>
+            <p>Share a login re-encrypted just for the recipient. Grant "use-only" access so they can log in without ever seeing the password.</p>
+          </article>
+          <article class="card">
+            <span class="card-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+            </span>
+            <h3>Folders &amp; generator</h3>
+            <p>Keep large vaults tidy with folders, tags and favorites, plus a built-in strong-password generator and strength meter.</p>
+          </article>
+          <article class="card">
+            <span class="card-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+            </span>
+            <h3>Admin controls</h3>
+            <p>Invite and manage users, assign roles, deactivate accounts instantly, and securely transfer credentials when people leave.</p>
+          </article>
+          <article class="card">
+            <span class="card-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
+            </span>
+            <h3>Audit &amp; reports</h3>
+            <p>A full audit log plus dashboards for password health and team activity — visibility without exposing any secret.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== Security ====================== -->
+    <section id="security" class="section section-alt reveal">
+      <div class="container security-grid">
+        <div>
+          <p class="eyebrow">Security</p>
+          <h2>Built so that even we can't read your passwords.</h2>
+          <p class="section-sub">E-Vault is zero-knowledge by design — your data is encrypted and decrypted only on your device.</p>
+          <ul class="ticks">
+            <li>Master password derived locally with <strong>PBKDF2-SHA256 (310,000 iterations)</strong>.</li>
+            <li>Every item encrypted with <strong>AES-256-GCM</strong>; sharing uses <strong>RSA-OAEP 2048</strong>.</li>
+            <li>The server only ever stores encrypted ciphertext — never your keys.</li>
+            <li>No tracking, no ads. The extension touches credential fields only when you autofill or save.</li>
+          </ul>
+        </div>
+        <div class="security-panel" aria-hidden="true">
+          <div class="sp-label">Your password</div>
+          <div class="sp-plain">hunter2!Str0ng</div>
+          <div class="sp-arrow"><span></span> encrypted on your device <span></span></div>
+          <div class="sp-cipher">8f3a··e21c··9b07··a4d5··c1f9··6e88··2db3··0a47··bc12··77e0··d9a3··5f6b</div>
+          <div class="sp-foot">↑ this is all the server ever sees</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== Extension ====================== -->
+    <section id="extension" class="section reveal">
+      <div class="container ext-grid">
+        <div class="ext-visual" aria-hidden="true">
+          <div class="ext-prompt">
+            <div class="ep-head">
+              <span class="ep-logo">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+              </span>
+              E-Vault
+            </div>
+            <div class="ep-title">Save this login?</div>
+            <div class="ep-site"><span class="vc-fav g">N</span><div><strong>app.example.com</strong><span>you@team.dev</span></div></div>
+            <div class="ep-actions"><button class="ep-ghost">Not now</button><button class="ep-primary">Save password</button></div>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow">Browser extension</p>
+          <h2>Right where you log in.</h2>
+          <p class="section-sub">Install once for Chrome or Edge. It connects automatically when you're signed in to E-Vault — no pairing codes.</p>
+          <ul class="ticks">
+            <li>One-click autofill and <strong>auto-login</strong> on the sites you've saved.</li>
+            <li>Smart capture that offers to <strong>save or update</strong> credentials as you sign in.</li>
+            <li>Stays unlocked for your session and <strong>locks when you close the browser</strong>.</li>
+          </ul>
+          <div class="hero-actions" style="margin-top:1.4rem">
+            <a class="btn btn-primary" id="open-app-ext" href="https://e-vault-app.emiactech.com">Get started ↗</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== How it works ====================== -->
+    <section id="how" class="section section-alt reveal">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">How it works</p>
+          <h2>Up and running in three steps.</h2>
+        </div>
+        <div class="steps">
+          <div class="step"><span class="step-n">1</span><h3>Get invited</h3><p>Your admin invites you by email. You set one password that logs you in and unlocks your vault — your keys are generated on your device.</p></div>
+          <div class="step"><span class="step-n">2</span><h3>Install the extension</h3><p>Add E-Vault to Chrome or Edge. It connects automatically when you're signed in to the app.</p></div>
+          <div class="step"><span class="step-n">3</span><h3>Browse normally</h3><p>E-Vault autofills your saved logins and offers to save new ones — securely, across your whole team.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== CTA ====================== -->
+    <section class="section reveal">
+      <div class="container">
+        <div class="cta-inner">
+          <h2>Ready to secure your team's passwords?</h2>
+          <p>Open the app to sign in, or ask your administrator for an invite.</p>
+          <a class="btn btn-lg cta-btn" id="open-app-cta" href="https://e-vault-app.emiactech.com">Open the App ↗</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ====================== Footer ====================== -->
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="#top">
+          <span class="brand-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          </span>
+          <span class="brand-name">E-Vault</span>
+        </a>
+        <p class="muted">Zero-knowledge password manager for teams. Encrypted on your device, shared safely.</p>
+      </div>
+      <nav class="footer-col" aria-label="Product">
+        <span class="footer-h">Product</span>
+        <a href="#features">Features</a>
+        <a href="#security">Security</a>
+        <a href="#extension">Extension</a>
+      </nav>
+      <nav class="footer-col" aria-label="Links">
+        <span class="footer-h">Links</span>
+        <a href="https://e-vault-app.emiactech.com">Open App</a>
+        <a href="mailto:support@emiactech.com">Contact</a>
+      </nav>
+    </div>
+    <div class="container footer-bottom">
+      <span>© <span id="year"></span> EMIAC Tech · E-Vault Password Manager</span>
+      <span class="muted">All encryption happens on your device.</span>
+    </div>
+  </footer>
+
+  <script src="site.js"></script>
+</body>
+</html>

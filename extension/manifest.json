@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Pass Vault",
-  "version": "0.1.1",
-  "description": "Pass Vault — secure password autofill for your organization.",
+  "name": "E-Vault Password Manager",
+  "version": "0.1.2",
+  "description": "E-Vault Password Manager — secure password autofill for your organization.",
   "permissions": ["storage", "activeTab", "scripting", "clipboardWrite"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "action": {
-    "default_title": "Pass Vault",
+    "default_title": "E-Vault Password Manager",
     "default_popup": "popup.html"
   },
   "background": {
@@ -25,8 +25,5 @@
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
-  },
-  "web_accessible_resources": [
-    { "resources": ["autofill-frame.html"], "matches": ["<all_urls>"] }
-  ]
+  }
 }

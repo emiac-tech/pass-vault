@@ -1,7 +1,7 @@
 // Thin API client for the extension. The base URL is configurable via storage,
 // defaulting to the same dev URL the web app uses.
 
-const DEFAULT_BASE = 'https://passvault.103.180.163.41.sslip.io/api';
+const DEFAULT_BASE = 'https://e-vault-app.emiactech.com/api';
 
 async function getBase() {
   const stored = await chrome.storage.local.get(['apiBaseUrl']);
@@ -29,7 +29,7 @@ async function request(path, { method = 'GET', body, anonymous = false } = {}) {
   const text = await response.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
-  if (!response.ok) throw new Error(data?.error || `Pass Vault ${response.status}`);
+  if (!response.ok) throw new Error(data?.error || `E-Vault Password Manager ${response.status}`);
   return data;
 }
 

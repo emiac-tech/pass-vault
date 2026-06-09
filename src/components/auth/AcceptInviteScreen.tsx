@@ -62,7 +62,7 @@ export function AcceptInviteScreen({ token, onDone }: { token: string; onDone: (
       <section className="login-layout">
         <aside className="login-hero">
           <div className="login-orb"><UserPlus size={34} /></div>
-          <p className="eyebrow">Welcome to Pass Vault</p>
+          <p className="eyebrow">Welcome to E-Vault Password Manager</p>
           <h1>Set up your account.</h1>
           <p>Choose one password — it logs you in <em>and</em> unlocks your vault. It never leaves your browser, and you can change your master password anytime from Settings.</p>
         </aside>

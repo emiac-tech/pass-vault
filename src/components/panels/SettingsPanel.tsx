@@ -196,7 +196,7 @@ export function SettingsPanel({
           {devices.length === 0 && <p className="muted" style={{ padding: '0.5rem' }}>No paired devices yet.</p>}
         </div>
         <p className="muted" style={{ marginTop: '1rem' }}>
-          The browser extension connects automatically when you're logged into Pass Vault in this browser — no pairing code needed. Just open the extension and unlock it with your master password.
+          The browser extension connects automatically when you're logged into E-Vault Password Manager in this browser — no pairing code needed. Just open the extension and unlock it with your master password.
         </p>
       </article>
 

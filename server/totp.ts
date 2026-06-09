@@ -60,7 +60,7 @@ export function verifyTotp(secret: string, token: string, drift = 1) {
   return false;
 }
 
-export function otpAuthUrl(label: string, secret: string, issuer = 'Pass Vault') {
+export function otpAuthUrl(label: string, secret: string, issuer = 'E-Vault Password Manager') {
   const encodedLabel = encodeURIComponent(`${issuer}:${label}`);
   const params = new URLSearchParams({ secret, issuer, algorithm: 'SHA1', digits: '6', period: '30' });
   return `otpauth://totp/${encodedLabel}?${params.toString()}`;

@@ -1,4 +1,4 @@
-# Pass Vault — Project Overview
+# E-Vault Password Manager — Project Overview
 
 > A secure, zero-knowledge password manager for teams and organizations.
 > Save, autofill, and share login credentials — without ever exposing your passwords to the server.
@@ -7,10 +7,10 @@
 
 ## Table of Contents
 
-1. [What is Pass Vault?](#1-what-is-pass-vault)
+1. [What is E-Vault Password Manager?](#1-what-is-pass-vault)
 2. [Who is it for?](#2-who-is-it-for)
 3. [The big idea: zero-knowledge](#3-the-big-idea-zero-knowledge)
-4. [The two parts of Pass Vault](#4-the-two-parts-of-pass-vault)
+4. [The two parts of E-Vault Password Manager](#4-the-two-parts-of-pass-vault)
 5. [The Web Dashboard](#5-the-web-dashboard)
 6. [The Browser Extension](#6-the-browser-extension)
 7. [How it all works together](#7-how-it-all-works-together)
@@ -24,13 +24,13 @@
 
 ---
 
-## 1. What is Pass Vault?
+## 1. What is E-Vault Password Manager?
 
-Pass Vault is a **password manager built for organizations**. It gives every team member a private,
+E-Vault Password Manager is a **password manager built for organizations**. It gives every team member a private,
 encrypted vault where they can store logins (usernames, passwords, website addresses, notes), and it
 lets them **fill those logins into websites automatically** through a browser extension.
 
-What makes Pass Vault different from a notebook or a shared spreadsheet:
+What makes E-Vault Password Manager different from a notebook or a shared spreadsheet:
 
 - **Everything is encrypted on your own device** before it ever reaches the server.
 - **Passwords can be shared with teammates securely** — without emailing them or putting them in chat.
@@ -38,7 +38,7 @@ What makes Pass Vault different from a notebook or a shared spreadsheet:
 - **A browser extension** saves new logins as you sign in and fills them back in later — like the
   password manager built into your browser, but owned and controlled by your organization.
 
-In one sentence: **Pass Vault is your organization's private, encrypted place for passwords, with
+In one sentence: **E-Vault Password Manager is your organization's private, encrypted place for passwords, with
 convenient autofill and safe team sharing.**
 
 ---
@@ -56,7 +56,7 @@ convenient autofill and safe team sharing.**
 
 This is the most important concept, so it's worth understanding in plain language.
 
-**"Zero-knowledge" means the Pass Vault server never knows your passwords.**
+**"Zero-knowledge" means the E-Vault Password Manager server never knows your passwords.**
 
 When you save a password:
 
@@ -78,9 +78,9 @@ administrators) genuinely cannot read your passwords — only you can.
 
 ---
 
-## 4. The two parts of Pass Vault
+## 4. The two parts of E-Vault Password Manager
 
-Pass Vault is made of two things you actually use, plus a server that connects them.
+E-Vault Password Manager is made of two things you actually use, plus a server that connects them.
 
 | Part | What it is | What you do with it |
 |------|------------|---------------------|
@@ -135,7 +135,7 @@ The dashboard is the control center. After logging in and unlocking with your ma
 The extension brings your vault into the websites you visit. It works on **Chrome and Microsoft Edge**.
 
 ### What it does
-- **Autofill** — when you open a site you've saved, Pass Vault offers to fill in your username and password.
+- **Autofill** — when you open a site you've saved, E-Vault Password Manager offers to fill in your username and password.
 - **Capture new logins** — when you sign in somewhere new, it offers to **save** that login to your vault.
 - **Update existing logins** — if your password or username changed, it offers to **update** the existing
   entry instead of creating a duplicate.
@@ -143,7 +143,7 @@ The extension brings your vault into the websites you visit. It works on **Chrom
 - **Open in the dashboard** — jump straight to managing or sharing any item in the web app.
 
 ### How it stays secure and convenient
-- **Auto-connect** — if you're already logged into the Pass Vault web app in the same browser, the
+- **Auto-connect** — if you're already logged into the E-Vault Password Manager web app in the same browser, the
   extension connects automatically. No codes to copy, no separate pairing step.
 - **Local unlock** — you unlock the extension with your master password; the keys are derived on your
   device. It stays unlocked for your browsing session and **locks automatically when you close the browser**.
@@ -163,9 +163,9 @@ A typical journey, end to end:
 2. **You log in and unlock.** You sign in to the dashboard and unlock with your master password. Your
    vault decrypts locally.
 3. **You browse normally.** With the extension installed and connected, you sign into a website.
-4. **Pass Vault offers to save it.** The extension detects the new login and offers to store it —
+4. **E-Vault Password Manager offers to save it.** The extension detects the new login and offers to store it —
    encrypted on your device — into your vault.
-5. **Next time, it fills automatically.** When you return to that site, Pass Vault offers to autofill.
+5. **Next time, it fills automatically.** When you return to that site, E-Vault Password Manager offers to autofill.
 6. **You share when needed.** Need a teammate to have access to a shared account? You share the item to
    them — it's re-encrypted so only *they* can open it.
 7. **Admins manage people, not passwords.** Admins can onboard, offboard, and assign roles, but the
@@ -175,7 +175,7 @@ A typical journey, end to end:
 
 ## 8. Roles & permissions
 
-Pass Vault has four roles, from most to least privileged:
+E-Vault Password Manager has four roles, from most to least privileged:
 
 | Role | Can do |
 |------|--------|
@@ -199,7 +199,7 @@ holds a key that can read your vault.
 
 ## 9. Secure password sharing
 
-Sharing is where Pass Vault really shines compared to spreadsheets or chat.
+Sharing is where E-Vault Password Manager really shines compared to spreadsheets or chat.
 
 When you share a login with a teammate:
 
@@ -221,7 +221,7 @@ This means you can safely give a colleague access to a shared account, and clean
 ### In plain terms
 - Your passwords are **encrypted on your device** and stored only as scrambled data on the server.
 - Your **master password and keys never leave your device.**
-- Pass Vault **does not sell data, show ads, or run tracking/analytics.**
+- E-Vault Password Manager **does not sell data, show ads, or run tracking/analytics.**
 - The extension only touches credential fields when you autofill or save — it doesn't watch your browsing.
 - The extension contains **no remotely-loaded code**; everything ships inside the published package.
 
@@ -241,15 +241,15 @@ This means you can safely give a colleague access to a shared account, and clean
 ## 11. Getting started
 
 ### As a user (web dashboard)
-1. Open the Pass Vault web app and accept your email invitation (or log in if you already have an account).
+1. Open the E-Vault Password Manager web app and accept your email invitation (or log in if you already have an account).
 2. Set / enter your **master password** to unlock your vault.
 3. Start adding logins, or organize existing ones into folders.
 
 ### As a user (browser extension)
-1. Install the Pass Vault extension from the Chrome Web Store / Edge Add-ons.
+1. Install the E-Vault Password Manager extension from the Chrome Web Store / Edge Add-ons.
 2. Click the toolbar icon and sign in (or let it auto-connect from your open web-app tab).
 3. Unlock with your master password.
-4. Browse normally — Pass Vault will offer to save new logins and autofill saved ones.
+4. Browse normally — E-Vault Password Manager will offer to save new logins and autofill saved ones.
 
 ### As an administrator
 1. Log in with an Admin or Super Admin account.
@@ -261,7 +261,7 @@ This means you can safely give a colleague access to a shared account, and clean
 
 ## 12. Under the hood (technical summary)
 
-For the technically curious, here's how Pass Vault is built.
+For the technically curious, here's how E-Vault Password Manager is built.
 
 | Layer | Technology |
 |-------|------------|
@@ -302,7 +302,7 @@ The server only stores encrypted data. Without your master password, that data i
 
 **Does the extension track which websites I visit?**
 No. It only reads or writes credential fields when you autofill or save a login. It does not collect
-browsing history, and it sends data only to your configured Pass Vault backend.
+browsing history, and it sends data only to your configured E-Vault Password Manager backend.
 
 **Which browsers are supported?**
 The extension targets Chromium-based browsers — Google Chrome and Microsoft Edge.
@@ -327,4 +327,4 @@ Yes. The dashboard is fully usable on its own. The extension simply adds conveni
 
 ---
 
-*Pass Vault — convenient password autofill, without compromising on security.*
+*E-Vault Password Manager — convenient password autofill, without compromising on security.*

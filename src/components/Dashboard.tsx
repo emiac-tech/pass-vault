@@ -248,13 +248,13 @@ export function Dashboard({
       <aside className="sidebar">
         <div className="brand-card">
           <div className="brand-icon"><LockKeyhole size={26} /></div>
-          <div><p className="eyebrow">Secure Workforce Vault</p><h1>Pass Vault</h1></div>
+          <div><p className="eyebrow">Secure Workforce Vault</p><h1>E-Vault Password Manager</h1></div>
         </div>
         <div className="current-role-card">
           <div className="signed-in-avatar">{(session.user.name || session.user.email || '?').charAt(0).toUpperCase()}</div>
           <div className="signed-in-meta">
             <p className="eyebrow">Signed in as</p>
-            <strong>{session.user.name || 'Pass Vault user'}</strong>
+            <strong>{session.user.name || 'E-Vault Password Manager user'}</strong>
             <span>{session.user.email}</span>
             <span className="role-pill">{roleLabels[currentRole]}</span>
           </div>

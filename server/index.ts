@@ -91,14 +91,28 @@ app.use('/api/extension', extensionRouter);
 // under /api; every other path falls through to the SPA's index.html. Only
 // enabled in production so the Vite dev server owns the frontend in development.
 const webDir = path.resolve(process.cwd(), 'dist');
+const siteDir = path.resolve(process.cwd(), 'public-site');
+// Hosts served the public marketing landing page (public-site/) instead of the app.
+// e.g. e-vault.emiactech.com → landing; e-vault-app.emiactech.com → the app.
+const publicSiteHosts = (process.env.PUBLIC_SITE_HOSTS ?? 'e-vault.emiactech.com')
+  .split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
+const wantsPublicSite = (request: express.Request) =>
+  existsSync(siteDir) && publicSiteHosts.includes(String(request.hostname || '').toLowerCase());
+
 if (config.nodeEnv === 'production' && existsSync(webDir)) {
-  app.use(express.static(webDir));
+  const serveApp = express.static(webDir);
+  const serveSite = express.static(siteDir);
+  // Static assets — pick the right document root based on the request host.
   app.use((request, response, next) => {
-    if (request.method !== 'GET' || request.path.startsWith('/api')) {
-      next();
-      return;
-    }
-    response.sendFile(path.join(webDir, 'index.html'));
+    if (request.path.startsWith('/api')) { next(); return; }
+    if (wantsPublicSite(request)) { serveSite(request, response, next); return; }
+    serveApp(request, response, next);
+  });
+  // SPA / index fallback for everything else.
+  app.use((request, response, next) => {
+    if (request.method !== 'GET' || request.path.startsWith('/api')) { next(); return; }
+    const dir = wantsPublicSite(request) ? siteDir : webDir;
+    response.sendFile(path.join(dir, 'index.html'));
   });
 }
 
@@ -113,5 +127,5 @@ app.use((error: unknown, _request: express.Request, response: express.Response, 
 });
 
 app.listen(config.port, () => {
-  console.log(`Pass Vault API listening on http://127.0.0.1:${config.port}`);
+  console.log(`E-Vault Password Manager API listening on http://127.0.0.1:${config.port}`);
 });

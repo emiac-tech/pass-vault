@@ -1,4 +1,4 @@
-// Pass Vault extension — client-side crypto. Mirrors src/crypto/vaultCrypto.ts.
+// E-Vault Password Manager extension — client-side crypto. Mirrors src/crypto/vaultCrypto.ts.
 // No bundler — pure JS for service worker + popup.
 
 const encoder = new TextEncoder();

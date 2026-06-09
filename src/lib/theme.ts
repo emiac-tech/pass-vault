@@ -9,11 +9,8 @@ export function getStoredTheme(): Theme {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'light' || saved === 'dark') return saved;
   } catch { /* ignore */ }
-  // Fall back to the OS preference, defaulting to dark.
-  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches) {
-    return 'light';
-  }
-  return 'dark';
+  // Default to light when the user hasn't chosen a theme yet.
+  return 'light';
 }
 
 export function applyTheme(theme: Theme) {

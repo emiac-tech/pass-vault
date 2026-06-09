@@ -1,4 +1,4 @@
-// Pass Vault — client-side crypto module.
+// E-Vault Password Manager — client-side crypto module.
 //
 // Architecture:
 //   - Master password -> PBKDF2 -> master key (AES-GCM, 256 bit).

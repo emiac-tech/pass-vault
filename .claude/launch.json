@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "public-site",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "serve:site"],
+      "port": 4100
+    }
+  ]
+}

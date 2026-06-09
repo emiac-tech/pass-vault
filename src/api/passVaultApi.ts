@@ -484,7 +484,7 @@ export class PassVaultApi {
     if (!response.ok) {
       const message = (payload && typeof payload === 'object' && 'error' in payload)
         ? String((payload as { error: unknown }).error)
-        : 'Pass Vault API request failed';
+        : 'E-Vault Password Manager API request failed';
       // Our token was rejected (expired, deleted, or the account was deactivated):
       // signal the app to log out. Plain "insufficient permissions" 403s are left
       // alone so a manager hitting an admin-only action isn't logged out.

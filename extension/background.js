@@ -22,6 +22,10 @@ let unlockedAt = 0;
 let itemsFetchedAt = 0;
 let orgRecoveryPublicKey = null;
 
+// How long a remembered username/fill step stays valid across the page navigation
+// in a multi-step (email page -> password page) login flow.
+const STEP_TTL_MS = 3 * 60 * 1000;
+
 // Wrap an item key to the org recovery public key (fetched + cached once), so the
 // item can be transferred by a super-admin. Returns undefined if recovery is off.
 async function recoveryCopyFor(itemKey) {
@@ -279,7 +283,7 @@ async function saveCapturedCredential(credential) {
     username: credential.username || '',
     password: credential.password || '',
     url: credential.url || '',
-    notes: 'Saved from Pass Vault browser extension.',
+    notes: 'Saved from E-Vault Password Manager browser extension.',
   }, itemKey);
   const wrapped = await wrapItemKey(itemKey, masterKey);
   const recovery_wrapped_item_key = await recoveryCopyFor(itemKey);
@@ -305,11 +309,21 @@ function normUser(value) {
 //   saved           — same host + username + password already saved (no prompt)
 //   update-password — same host + username, different password (offer update)
 //   new-username    — same host, different username (offer save-new or update-existing)
+// Sites the user opted out of saving (via the "Don't ask for this site" checkbox).
+// Non-secret host list in chrome.storage.local; cleared on disconnect (per user).
+async function isHostIgnored(host) {
+  try {
+    const { pvNeverSaveHosts } = await chrome.storage.local.get(['pvNeverSaveHosts']);
+    return Array.isArray(pvNeverSaveHosts) && pvNeverSaveHosts.includes(host);
+  } catch { return false; }
+}
+
 async function classifyCredential(credential) {
   await ensureUnlocked();
   await refreshIfStale();
   const host = hostFromUrl(credential.url || '');
   if (!host) return { kind: 'new' };
+  if (await isHostIgnored(host)) return { kind: 'ignored' };
   const uname = normUser(credential.username);
 
   if (masterKey && cachedUser) {
@@ -452,6 +466,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         case 'save-captured': {
           const item = await saveCapturedCredential(message.credential || {});
           await chrome.storage.local.remove('pendingCredential');
+          try { await chrome.storage.session.remove('pvUsernameStep'); } catch { /* ignore */ }
           sendResponse({ ok: true, item });
           break;
         }
@@ -479,6 +494,63 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         }
         case 'discard-pending-capture': {
           await chrome.storage.local.remove('pendingCredential');
+          sendResponse({ ok: true });
+          break;
+        }
+        // ---- multi-step login (username page -> password page) ----
+        case 'remember-username-step': {
+          try {
+            await chrome.storage.session.set({ pvUsernameStep: { host: String(message.host || ''), username: String(message.username || ''), ts: Date.now() } });
+          } catch { /* ignore */ }
+          sendResponse({ ok: true });
+          break;
+        }
+        case 'get-username-step': {
+          let username = '';
+          try {
+            const { pvUsernameStep } = await chrome.storage.session.get('pvUsernameStep');
+            if (pvUsernameStep && hostsMatch(String(message.host || ''), pvUsernameStep.host)
+              && Date.now() - pvUsernameStep.ts < STEP_TTL_MS) {
+              username = pvUsernameStep.username || '';
+            }
+          } catch { /* ignore */ }
+          sendResponse({ ok: true, username });
+          break;
+        }
+        case 'remember-fill-step': {
+          try {
+            await chrome.storage.session.set({ pvFillStep: { host: String(message.host || ''), itemId: String(message.itemId || ''), ts: Date.now() } });
+          } catch { /* ignore */ }
+          sendResponse({ ok: true });
+          break;
+        }
+        case 'get-fill-step': {
+          let itemId = '';
+          try {
+            const { pvFillStep } = await chrome.storage.session.get('pvFillStep');
+            if (pvFillStep && hostsMatch(String(message.host || ''), pvFillStep.host)
+              && Date.now() - pvFillStep.ts < STEP_TTL_MS) {
+              itemId = pvFillStep.itemId || '';
+            }
+          } catch { /* ignore */ }
+          sendResponse({ ok: true, itemId });
+          break;
+        }
+        case 'clear-fill-step': {
+          try { await chrome.storage.session.remove('pvFillStep'); } catch { /* ignore */ }
+          sendResponse({ ok: true });
+          break;
+        }
+        case 'never-save-host': {
+          const host = String(message.host || '').trim().toLowerCase();
+          if (host) {
+            const { pvNeverSaveHosts } = await chrome.storage.local.get(['pvNeverSaveHosts']);
+            const list = Array.isArray(pvNeverSaveHosts) ? pvNeverSaveHosts : [];
+            if (!list.includes(host)) {
+              list.push(host);
+              await chrome.storage.local.set({ pvNeverSaveHosts: list });
+            }
+          }
           sendResponse({ ok: true });
           break;
         }

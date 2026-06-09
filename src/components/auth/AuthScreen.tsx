@@ -54,7 +54,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Aut
         <div className="auth-card login-card">
           <div className="auth-heading">
             <div className="brand-icon"><LockKeyhole size={24} /></div>
-            <div><p className="eyebrow">Pass Vault</p><h2>Login</h2></div>
+            <div><p className="eyebrow">E-Vault Password Manager</p><h2>Login</h2></div>
           </div>
           <p className="auth-copy">Use your admin-provided account. Signup is disabled by design.</p>
           <form className="auth-form" onSubmit={handleSubmit}>

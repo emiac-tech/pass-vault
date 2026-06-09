@@ -26,10 +26,11 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-# Compiled API + built web bundle + SQL migrations.
+# Compiled API + built web bundle + SQL migrations + public landing site.
 COPY --from=build /app/server-dist ./server-dist
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/database ./database
+COPY --from=build /app/public-site ./public-site
 
 EXPOSE 4000
 CMD ["node", "server-dist/server/index.js"]

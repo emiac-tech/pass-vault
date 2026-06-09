@@ -1,4 +1,4 @@
-// Pass Vault extension popup.
+// E-Vault Password Manager extension popup.
 // States: not-paired -> paired+locked -> unlocked -> item-list / item-detail / settings
 
 const screen = document.getElementById('screen');
@@ -10,7 +10,7 @@ const themeButton = document.getElementById('theme-button');
 const ENVIRONMENTS = {
   // Local runs via Docker (single container): web app + API both on port 4000.
   local: { label: 'Local', apiBaseUrl: 'http://127.0.0.1:4000/api', webAppUrl: 'http://127.0.0.1:4000' },
-  production: { label: 'Production', apiBaseUrl: 'https://passvault.103.180.163.41.sslip.io/api', webAppUrl: 'https://passvault.103.180.163.41.sslip.io' },
+  production: { label: 'Production', apiBaseUrl: 'https://e-vault-app.emiactech.com/api', webAppUrl: 'https://e-vault-app.emiactech.com' },
 };
 
 // ---------------------------------------------------------------------------
@@ -25,7 +25,8 @@ function getStoredTheme() {
     const saved = localStorage.getItem(THEME_KEY);
     if (saved === 'light' || saved === 'dark') return saved;
   } catch { /* ignore */ }
-  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  // Default to light when the user hasn't chosen a theme yet.
+  return 'light';
 }
 
 function applyTheme(theme) {
@@ -154,8 +155,8 @@ function element(tag, props = {}, ...children) {
 
 async function getWebAppOrigin() {
   const { webAppUrl } = await chrome.storage.local.get(['webAppUrl']);
-  const base = (webAppUrl || 'https://passvault.103.180.163.41.sslip.io').replace(/\/+$/, '');
-  try { return new URL(base).origin; } catch { return 'https://passvault.103.180.163.41.sslip.io'; }
+  const base = (webAppUrl || 'https://e-vault-app.emiactech.com').replace(/\/+$/, '');
+  try { return new URL(base).origin; } catch { return 'https://e-vault-app.emiactech.com'; }
 }
 
 // Auto-connect: read the logged-in web app's session token from an open web app
@@ -222,10 +223,10 @@ function renderConnect() {
   card.appendChild(element('div', { class: 'hero-text' },
     element('span', { class: 'eyebrow' }, 'Connect'),
     element('h2', {}, 'Log into the web app'),
-    element('p', {}, 'Open and log into the Pass Vault web app in this browser. The extension connects to the same account automatically — no pairing code needed.'),
+    element('p', {}, 'Open and log into the E-Vault Password Manager web app in this browser. The extension connects to the same account automatically — no pairing code needed.'),
   ));
 
-  const open = element('button', { class: 'primary' }, 'Open Pass Vault web app');
+  const open = element('button', { class: 'primary' }, 'Open E-Vault Password Manager web app');
   open.addEventListener('click', async () => {
     const origin = await getWebAppOrigin();
     await chrome.tabs.create({ url: origin });
@@ -301,7 +302,7 @@ function renderUnlock() {
     // user's saved settings (API/web URLs, theme). The account is whichever one
     // is logged into the web app — switch there to change it.
     await sendMessage({ type: 'lock' });
-    await chrome.storage.local.remove(['accountToken', 'extensionToken', 'pairedUser', 'savedCredIndex']);
+    await chrome.storage.local.remove(['accountToken', 'extensionToken', 'pairedUser', 'savedCredIndex', 'pvNeverSaveHosts']);
     detectState();
   });
   card.appendChild(switchAccount);
@@ -332,7 +333,7 @@ async function renderItemList(tabName = 'passwords') {
     element('strong', {}, tabName === 'folders' ? 'Folders' : 'All Passwords'),
     element('div', { class: 'toolbar-icons' },
       element('button', { title: 'Refresh', onclick: async () => { await sendMessage({ type: 'refresh' }); items = (await sendMessage({ type: 'list-items' })).items; renderItemList(tabName); } }, '↻'),
-      element('button', { title: 'Add from current site', onclick: () => showToast('Submit a login/signup form and Pass Vault will offer to save it.') }, '+'),
+      element('button', { title: 'Add from current site', onclick: () => showToast('Submit a login/signup form and E-Vault Password Manager will offer to save it.') }, '+'),
       element('button', { title: 'Filter' }, '⌯'),
     ),
   );
@@ -507,7 +508,7 @@ function buildHoverActions(item) {
   actions.appendChild(button(svgIcon('share'), 'Open share', async () => {
     // Open the WEB APP (not the API server) to manage sharing for this item.
     const stored = await chrome.storage.local.get(['webAppUrl']);
-    const base = (stored.webAppUrl || 'https://passvault.103.180.163.41.sslip.io').replace(/\/+$/, '');
+    const base = (stored.webAppUrl || 'https://e-vault-app.emiactech.com').replace(/\/+$/, '');
     chrome.tabs.create({ url: `${base}/#/share/${item.id}` });
   }));
 
@@ -760,7 +761,7 @@ async function renderSettings() {
     btn.addEventListener('click', async () => {
       await chrome.storage.local.set({ apiBaseUrl: env.apiBaseUrl, webAppUrl: env.webAppUrl });
       await sendMessage({ type: 'lock' });
-      await chrome.storage.local.remove(['accountToken', 'extensionToken', 'pairedUser', 'savedCredIndex']);
+      await chrome.storage.local.remove(['accountToken', 'extensionToken', 'pairedUser', 'savedCredIndex', 'pvNeverSaveHosts']);
       showToast(`Switched to ${env.label}`);
       renderSettings();
     });
@@ -785,16 +786,16 @@ async function renderSettings() {
   const deviceSection = element('div', { class: 'settings-section' });
   deviceSection.appendChild(element('h3', {}, 'Connection'));
   if (stored.accountToken) {
-    deviceSection.appendChild(element('p', { class: 'helper' }, 'Connected automatically to your logged-in Pass Vault web app. Disconnect to lock this extension and forget the session.'));
+    deviceSection.appendChild(element('p', { class: 'helper' }, 'Connected automatically to your logged-in E-Vault Password Manager web app. Disconnect to lock this extension and forget the session.'));
     const disconnect = element('button', { class: 'ghost' }, 'Disconnect & lock');
     disconnect.addEventListener('click', async () => {
       await sendMessage({ type: 'lock' });
-      await chrome.storage.local.remove(['accountToken', 'extensionToken', 'pairedUser', 'savedCredIndex']);
+      await chrome.storage.local.remove(['accountToken', 'extensionToken', 'pairedUser', 'savedCredIndex', 'pvNeverSaveHosts']);
       detectState();
     });
     deviceSection.appendChild(disconnect);
   } else {
-    deviceSection.appendChild(element('p', { class: 'helper' }, 'Not connected. Log into the Pass Vault web app in this browser and the extension connects automatically.'));
+    deviceSection.appendChild(element('p', { class: 'helper' }, 'Not connected. Log into the E-Vault Password Manager web app in this browser and the extension connects automatically.'));
     const reconnect = element('button', { class: 'primary' }, 'Connect now');
     reconnect.addEventListener('click', detectState);
     deviceSection.appendChild(reconnect);

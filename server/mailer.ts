@@ -49,15 +49,15 @@ export function buildInviteEmail(opts: { email: string; role: string; inviteUrl:
 } {
   const roleLabel = roleLabels[opts.role] ?? opts.role;
   const inviter = opts.inviterName ? `${opts.inviterName} has invited you` : 'You have been invited';
-  const subject = 'You have been invited to Pass Vault';
-  const text = `${inviter} to join Pass Vault as ${roleLabel}.
+  const subject = 'You have been invited to E-Vault Password Manager';
+  const text = `${inviter} to join E-Vault Password Manager as ${roleLabel}.
 
 Accept your invitation and set up your account here:
 ${opts.inviteUrl}
 
 This invitation expires in 7 days. If you did not expect this email, you can ignore it.
 
-— Pass Vault`;
+— E-Vault Password Manager`;
 
   const html = `<!doctype html>
 <html><body style="margin:0;background:#0a0e1a;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -65,12 +65,12 @@ This invitation expires in 7 days. If you did not expect this email, you can ign
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#11162a;border:1px solid rgba(148,163,184,0.16);border-radius:16px;overflow:hidden;">
         <tr><td style="padding:22px 28px;background:linear-gradient(135deg,#38bdf8,#6366f1);">
-          <span style="font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.01em;">🔒 Pass Vault</span>
+          <span style="font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.01em;">🔒 E-Vault Password Manager</span>
         </td></tr>
         <tr><td style="padding:28px;">
-          <h1 style="margin:0 0 12px;font-size:20px;color:#f8fafc;font-weight:800;">${escapeHtml(inviter)} to Pass Vault</h1>
+          <h1 style="margin:0 0 12px;font-size:20px;color:#f8fafc;font-weight:800;">${escapeHtml(inviter)} to E-Vault Password Manager</h1>
           <p style="margin:0 0 16px;color:#cbd5e1;font-size:14px;line-height:1.6;">
-            You've been invited to join <strong style="color:#f8fafc;">Pass Vault</strong> as <strong style="color:#f8fafc;">${escapeHtml(roleLabel)}</strong>.
+            You've been invited to join <strong style="color:#f8fafc;">E-Vault Password Manager</strong> as <strong style="color:#f8fafc;">${escapeHtml(roleLabel)}</strong>.
             Accept your invitation to create your account and set up your encrypted vault.
           </p>
           <p style="margin:24px 0;">
