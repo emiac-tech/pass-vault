@@ -155,7 +155,12 @@ function element(tag, props = {}, ...children) {
 
 async function getWebAppOrigin() {
   const { webAppUrl } = await chrome.storage.local.get(['webAppUrl']);
-  const base = (webAppUrl || 'https://e-vault-app.emiactech.com').replace(/\/+$/, '');
+  let base = (webAppUrl || 'https://e-vault-app.emiactech.com').replace(/\/+$/, '');
+  // Migrate any stored URL from the retired domain to the new app domain.
+  if (base.includes('passvault.103.180.163.41.sslip.io')) {
+    base = base.replace('passvault.103.180.163.41.sslip.io', 'e-vault-app.emiactech.com');
+    try { await chrome.storage.local.set({ webAppUrl: base }); } catch { /* ignore */ }
+  }
   try { return new URL(base).origin; } catch { return 'https://e-vault-app.emiactech.com'; }
 }
 

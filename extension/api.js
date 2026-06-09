@@ -2,10 +2,20 @@
 // defaulting to the same dev URL the web app uses.
 
 const DEFAULT_BASE = 'https://e-vault-app.emiactech.com/api';
+const OLD_HOST = 'passvault.103.180.163.41.sslip.io';
+const NEW_HOST = 'e-vault-app.emiactech.com';
 
 async function getBase() {
-  const stored = await chrome.storage.local.get(['apiBaseUrl']);
-  return stored.apiBaseUrl || DEFAULT_BASE;
+  const stored = await chrome.storage.local.get(['apiBaseUrl', 'webAppUrl']);
+  let base = stored.apiBaseUrl || DEFAULT_BASE;
+  // Migrate any stored URL from the retired domain to the new app domain.
+  if (base.includes(OLD_HOST)) {
+    base = base.replace(OLD_HOST, NEW_HOST);
+    const patch = { apiBaseUrl: base };
+    if (stored.webAppUrl && stored.webAppUrl.includes(OLD_HOST)) patch.webAppUrl = stored.webAppUrl.replace(OLD_HOST, NEW_HOST);
+    try { await chrome.storage.local.set(patch); } catch { /* ignore */ }
+  }
+  return base;
 }
 
 async function getToken() {
