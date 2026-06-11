@@ -1,4 +1,4 @@
-import { KeyRound, Share2, Users } from 'lucide-react';
+import { KeyRound, Share2, Inbox, Users } from 'lucide-react';
 import { roleLabels, toDashboardRole } from '../../lib/constants';
 import { Badge } from '../ui/Badge';
 
@@ -10,24 +10,26 @@ export interface UserStatRow {
   status: string;
   savedCount: number;
   sharedCount: number;
+  receivedCount: number;
 }
 
 export function UserPasswordStats({ stats }: { stats: UserStatRow[] }) {
   const totalSaved = stats.reduce((acc, s) => acc + s.savedCount, 0);
   const totalShared = stats.reduce((acc, s) => acc + s.sharedCount, 0);
+  const totalReceived = stats.reduce((acc, s) => acc + (s.receivedCount ?? 0), 0);
 
   return (
     <article className="panel-card user-stats-card">
       <div className="card-header">
         <div><p className="eyebrow">Team breakdown</p><h3>Passwords by user</h3></div>
-        <span className="muted">{stats.length} users · {totalSaved} saved · {totalShared} shared</span>
+        <span className="muted">{stats.length} users · {totalSaved} saved · {totalShared} shared · {totalReceived} received</span>
       </div>
 
       {stats.length === 0 ? (
         <div className="empty-card">
           <Users size={26} />
           <strong>No users yet.</strong>
-          <p className="muted">Invite teammates to see their saved and shared password counts here.</p>
+          <p className="muted">Invite teammates to see their saved, shared and received password counts here.</p>
         </div>
       ) : (
         <div className="user-stats-table" role="table">
@@ -36,6 +38,7 @@ export function UserPasswordStats({ stats }: { stats: UserStatRow[] }) {
             <span role="columnheader">Role</span>
             <span className="num" role="columnheader"><KeyRound size={14} /> Saved</span>
             <span className="num" role="columnheader"><Share2 size={14} /> Shared</span>
+            <span className="num" role="columnheader"><Inbox size={14} /> Shared with</span>
           </div>
           {stats.map((s) => {
             const role = toDashboardRole(s.role as never);
@@ -52,6 +55,7 @@ export function UserPasswordStats({ stats }: { stats: UserStatRow[] }) {
                 <span><Badge tone={role === 'super-admin' || role === 'admin' ? 'success' : 'neutral'}>{roleLabels[role] ?? s.role}</Badge></span>
                 <span className="num">{s.savedCount}</span>
                 <span className="num">{s.sharedCount}</span>
+                <span className="num">{s.receivedCount ?? 0}</span>
               </div>
             );
           })}

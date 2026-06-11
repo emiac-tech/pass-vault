@@ -41,7 +41,8 @@ export function Dashboard({
 }) {
   const currentRole = toDashboardRole(session.user.role);
   const [activePanel, setActivePanel] = useState<Panel>('dashboard');
-  const [scope, setScope] = useState<Scope>('mine');
+  // Super admins land on the Team Dashboard by default; they can switch to My Dashboard.
+  const [scope, setScope] = useState<Scope>(currentRole === 'super-admin' ? 'team' : 'mine');
   const [query, setQuery] = useState('');
 
   const [items, setItems] = useState<ApiVaultItem[]>([]);

@@ -96,7 +96,11 @@ router.get('/user-stats', requireRoles('super_admin', 'admin'), asyncHandler(asy
   const result = await query<Record<string, unknown>>(
     `SELECT u.id, u.name, u.email, u.role, u.status,
        (SELECT count(*) FROM vault_items vi WHERE vi.owner_id = u.id AND vi.deleted_at IS NULL) AS saved_count,
-       (SELECT count(*) FROM vault_shares vs WHERE vs.shared_by = u.id AND vs.revoked_at IS NULL) AS shared_count
+       (SELECT count(*) FROM vault_shares vs WHERE vs.shared_by = u.id AND vs.revoked_at IS NULL) AS shared_count,
+       (SELECT count(*) FROM vault_shares vs2
+          JOIN vault_items vi2 ON vi2.id = vs2.vault_item_id
+        WHERE vs2.recipient_user_id = u.id AND vs2.revoked_at IS NULL AND vi2.deleted_at IS NULL
+          AND (vs2.expires_at IS NULL OR vs2.expires_at > now())) AS received_count
      FROM users u
      ORDER BY saved_count DESC, u.name ASC`,
   );
@@ -109,6 +113,7 @@ router.get('/user-stats', requireRoles('super_admin', 'admin'), asyncHandler(asy
       status: row.status,
       savedCount: Number(row.saved_count ?? 0),
       sharedCount: Number(row.shared_count ?? 0),
+      receivedCount: Number(row.received_count ?? 0),
     })),
   });
 }));

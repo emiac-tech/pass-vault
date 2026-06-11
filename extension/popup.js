@@ -32,6 +32,9 @@ function getStoredTheme() {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ }
+  // Mirror to chrome.storage so the in-page content-script overlays (picker /
+  // save prompt) can match the same theme the user picked here.
+  try { chrome.storage.local.set({ pvTheme: theme }); } catch { /* ignore */ }
   if (themeButton) themeButton.innerHTML = theme === 'light' ? MOON_ICON : SUN_ICON;
 }
 

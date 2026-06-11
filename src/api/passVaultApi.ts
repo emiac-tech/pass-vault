@@ -438,7 +438,7 @@ export class PassVaultApi {
     );
   }
   userStats() {
-    return this.request<{ stats: Array<{ id: string; name: string; email: string; role: string; status: string; savedCount: number; sharedCount: number }> }>(
+    return this.request<{ stats: Array<{ id: string; name: string; email: string; role: string; status: string; savedCount: number; sharedCount: number; receivedCount: number }> }>(
       '/dashboard/user-stats',
     );
   }

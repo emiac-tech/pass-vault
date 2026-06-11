@@ -9,7 +9,7 @@
 
   // Bump this when content.js changes so you can confirm in the page console
   // (F12) that the freshly-loaded code is running, not a stale injected copy.
-  console.info('[E-Vault Password Manager] content script v9 — multi-step login (username page + password page)');
+  console.info('[E-Vault Password Manager] content script v11 — picker search + custom name + theme-aware overlays');
 
   const STYLE_ID = 'pass-vault-content-style';
   // Identify the username/email field by credential keywords in its attributes —
@@ -30,6 +30,25 @@
 
   let matchCache = { origin: '', items: [], locked: false, loadedAt: 0 };
   const fieldDecorations = new Map();
+
+  // In-page overlays (picker / save prompt) follow the theme the user picked in
+  // the extension. The popup mirrors it to chrome.storage.local as `pvTheme`.
+  let pvTheme = 'light';
+  function applyOverlayTheme() {
+    document.querySelectorAll('.pass-vault-picker, .pass-vault-save-prompt')
+      .forEach((el) => el.setAttribute('data-pv-theme', pvTheme));
+  }
+  try {
+    storageGet(['pvTheme']).then((r) => {
+      if (r.pvTheme === 'light' || r.pvTheme === 'dark') { pvTheme = r.pvTheme; applyOverlayTheme(); }
+    });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.pvTheme) {
+        const next = changes.pvTheme.newValue;
+        if (next === 'light' || next === 'dark') { pvTheme = next; applyOverlayTheme(); }
+      }
+    });
+  } catch { /* ignore */ }
 
   function injectStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -102,14 +121,83 @@
         border: 1px solid rgba(148, 163, 184, 0.28);
         box-shadow: 0 22px 70px rgba(2, 6, 23, 0.55), 0 0 0 1px rgba(56, 189, 248, 0.18);
       }
-      .pass-vault-picker { position: absolute; width: 290px; }
+      .pass-vault-picker { position: absolute; width: 380px; }
+      .pass-vault-picker-search {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 12px;
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
+      }
+      .pass-vault-picker-search-ic { display: grid; place-items: center; color: #94a3b8; flex: 0 0 auto; }
+      .pass-vault-picker-search input {
+        flex: 1; min-width: 0;
+        background: rgba(2, 6, 23, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 9px;
+        color: #f8fafc;
+        font: 500 13px ui-sans-serif, system-ui, sans-serif;
+        padding: 8px 11px;
+        outline: none;
+      }
+      .pass-vault-picker-search input::placeholder { color: #6b7280; }
+      .pass-vault-picker-search input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25); }
+      .pass-vault-picker-list { max-height: 300px; overflow-y: auto; }
       .pass-vault-save-prompt {
         top: 20px;
         right: 20px;
-        width: 360px;
+        width: 392px;
         border-radius: 16px;
         animation: pass-vault-slide-in 0.25s cubic-bezier(0.2, 0.85, 0.25, 1);
       }
+      .pass-vault-save-name { display: grid; gap: 5px; }
+      .pass-vault-save-name input {
+        width: 100%;
+        background: rgba(2, 6, 23, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 9px;
+        color: #f8fafc;
+        font: 600 13.5px ui-sans-serif, system-ui, sans-serif;
+        padding: 9px 11px;
+        outline: none;
+      }
+      .pass-vault-save-name input::placeholder { color: #6b7280; font-weight: 500; }
+      .pass-vault-save-name input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25); }
+
+      /* ===== Light theme (matches the extension's selected theme) ===== */
+      .pass-vault-picker[data-pv-theme="light"],
+      .pass-vault-save-prompt[data-pv-theme="light"] {
+        background: #ffffff; color: #0f172a;
+        border-color: rgba(15, 23, 42, 0.12);
+        box-shadow: 0 22px 70px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.05);
+      }
+      .pass-vault-picker[data-pv-theme="light"] .pass-vault-picker-row { background: #ffffff; color: #0f172a; border-top-color: rgba(15, 23, 42, 0.08); }
+      .pass-vault-picker[data-pv-theme="light"] .pass-vault-picker-row:hover { background: #f1f4f9; }
+      .pass-vault-picker[data-pv-theme="light"] .pass-vault-picker-row span { color: #64748b; }
+      .pass-vault-picker[data-pv-theme="light"] .pass-vault-picker-search { border-top-color: rgba(15, 23, 42, 0.08); }
+      .pass-vault-picker[data-pv-theme="light"] .pass-vault-picker-search-ic { color: #94a3b8; }
+      .pass-vault-picker[data-pv-theme="light"] .pass-vault-picker-search input,
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-name input {
+        background: #f6f8fc; border-color: rgba(15, 23, 42, 0.14); color: #0f172a;
+      }
+      .pass-vault-picker[data-pv-theme="light"] .pass-vault-picker-search input::placeholder,
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-name input::placeholder { color: #94a3b8; }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-header { border-bottom-color: rgba(15, 23, 42, 0.08); }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-brand { color: #1e293b; }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-title { color: #0f172a; }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-note { color: #475569; }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-site,
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-pass { background: #f6f8fc; border-color: rgba(15, 23, 42, 0.1); }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-site-text strong { color: #0f172a; }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-site-text span,
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-label,
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-dots,
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-never,
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-status { color: #64748b; }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-close { background: rgba(15, 23, 42, 0.06); color: #475569; }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-close:hover { background: rgba(15, 23, 42, 0.12); color: #0f172a; }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-actions button { background: #f1f4f9; color: #334155; border-color: rgba(15, 23, 42, 0.1); }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-actions button:hover { background: #e6ebf2; }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-actions .primary { color: #fff; }
+      .pass-vault-save-prompt[data-pv-theme="light"] .pass-vault-save-favicon.fallback { background: rgba(37, 99, 235, 0.1); color: #2563eb; }
       @keyframes pass-vault-slide-in {
         from { opacity: 0; transform: translate3d(20px, -10px, 0); }
         to { opacity: 1; transform: translate3d(0, 0, 0); }
@@ -210,8 +298,9 @@
         width: 100%;
         display: grid;
         grid-template-columns: 1fr auto;
-        gap: 10px;
-        padding: 10px 12px;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
         border: 0;
         border-top: 1px solid rgba(148, 163, 184, 0.12);
         background: #111827;
@@ -219,10 +308,20 @@
         text-align: left;
         cursor: pointer;
         font: inherit;
+        transition: background 0.12s ease;
       }
       .pass-vault-picker-row:hover { background: #1f2937; }
-      .pass-vault-picker-row strong { display: block; font-size: 13px; }
-      .pass-vault-picker-row span { color: #94a3b8; font-size: 12px; }
+      .pass-vault-picker-row strong { display: block; font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .pass-vault-picker-row span { color: #94a3b8; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .pass-vault-picker-row > div { min-width: 0; }
+      .pass-vault-picker-empty { cursor: default; }
+      .pass-vault-picker-fill {
+        color: #fff !important;
+        background: linear-gradient(135deg, #2563eb, #6366f1);
+        padding: 5px 13px; border-radius: 999px;
+        font-size: 12px !important; font-weight: 700;
+        flex: 0 0 auto;
+      }
       .pass-vault-save-body { padding: 14px; display: grid; gap: 12px; }
       .pass-vault-save-note { color: #cbd5e1; font-size: 12.5px; line-height: 1.4; }
       .pass-vault-save-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 9px; margin-top: 2px; }
@@ -347,39 +446,68 @@
     element.style.left = `${window.scrollX + rect.right - element.offsetWidth - offsetRight}px`;
   }
 
+  let pickerDocClick = null;
   function closePickers() {
     document.querySelectorAll('.pass-vault-picker').forEach((node) => node.remove());
+    if (pickerDocClick) { document.removeEventListener('click', pickerDocClick, true); pickerDocClick = null; }
   }
 
+  const PICKER_WIDTH = 380;
   function showPicker(anchor, items, onPick) {
     closePickers();
     const picker = document.createElement('div');
     picker.className = 'pass-vault-picker';
+    picker.setAttribute('data-pv-theme', pvTheme);
     picker.innerHTML = `
       <div class="pass-vault-picker-header"><span class="pass-vault-logo">EV</span><span>E-Vault Password Manager</span></div>
+      <div class="pass-vault-picker-search">
+        <span class="pass-vault-picker-search-ic">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        </span>
+        <input type="text" placeholder="Search credentials by name…" autocomplete="off" spellcheck="false">
+      </div>
     `;
     const list = document.createElement('div');
-    if (items.length === 0) {
-      const row = document.createElement('div');
-      row.className = 'pass-vault-picker-row';
-      row.innerHTML = '<div><strong>No matching passwords</strong><span>Open extension or save this login first.</span></div>';
-      list.appendChild(row);
-    }
-    for (const item of items) {
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'pass-vault-picker-row';
-      const subtitle = item.username || item.url || 'Saved credential';
-      row.innerHTML = `<div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(subtitle)}</span></div><span>Fill</span>`;
-      row.addEventListener('click', () => { closePickers(); onPick(item); });
-      list.appendChild(row);
-    }
+    list.className = 'pass-vault-picker-list';
     picker.appendChild(list);
+
+    const render = (query) => {
+      list.innerHTML = '';
+      const needle = (query || '').trim().toLowerCase();
+      const filtered = items.filter((item) => !needle
+        || `${item.title || ''} ${item.username || ''} ${item.url || ''}`.toLowerCase().includes(needle));
+      if (filtered.length === 0) {
+        const row = document.createElement('div');
+        row.className = 'pass-vault-picker-row pass-vault-picker-empty';
+        row.innerHTML = items.length === 0
+          ? '<div><strong>No matching passwords</strong><span>Open the extension or save this login first.</span></div>'
+          : '<div><strong>No results</strong><span>No saved credential matches your search.</span></div>';
+        list.appendChild(row);
+        return;
+      }
+      for (const item of filtered) {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'pass-vault-picker-row';
+        const subtitle = item.username || item.url || 'Saved credential';
+        row.innerHTML = `<div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(subtitle)}</span></div><span class="pass-vault-picker-fill">Fill</span>`;
+        row.addEventListener('click', () => { closePickers(); onPick(item); });
+        list.appendChild(row);
+      }
+    };
+    render('');
+
+    const search = picker.querySelector('.pass-vault-picker-search input');
+    search.addEventListener('input', () => render(search.value));
+
     document.body.appendChild(picker);
     const rect = anchor.getBoundingClientRect();
     picker.style.top = `${window.scrollY + rect.bottom + 8}px`;
-    picker.style.left = `${Math.min(window.scrollX + rect.left, window.scrollX + window.innerWidth - 310)}px`;
-    setTimeout(() => document.addEventListener('click', closePickers, { once: true }), 50);
+    picker.style.left = `${Math.max(8, Math.min(window.scrollX + rect.left, window.scrollX + window.innerWidth - PICKER_WIDTH - 12))}px`;
+    setTimeout(() => { try { search.focus(); } catch { /* ignore */ } }, 30);
+    // Close only when clicking OUTSIDE the picker (so searching/typing keeps it open).
+    pickerDocClick = (event) => { if (!picker.contains(event.target)) closePickers(); };
+    setTimeout(() => document.addEventListener('click', pickerDocClick, true), 50);
   }
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -507,13 +635,9 @@
       showLockedBadge(field, 'Vault locked');
       return;
     }
-    const items = state.items;
-    if (items.length === 1) {
-      const { submitted } = await fillItem(items[0], field);
-      showLockedBadge(field, submitted ? 'Signing in…' : 'Filled ✓');
-      return;
-    }
-    showPicker(button, items, (item) => fillItem(item, field).then((r) => showLockedBadge(field, r?.submitted ? 'Signing in…' : 'Filled ✓')));
+    // Always show the picker (with search) so the user can see and choose the
+    // credential — even when only one is saved for this site.
+    showPicker(button, state.items, (item) => fillItem(item, field).then((r) => showLockedBadge(field, r?.submitted ? 'Signing in…' : 'Filled ✓')));
   }
 
   function showLockedBadge(field, text) {
@@ -818,6 +942,7 @@
 
     const prompt = document.createElement('div');
     prompt.className = 'pass-vault-save-prompt';
+    prompt.setAttribute('data-pv-theme', pvTheme);
     prompt.dataset.reason = reason;
     prompt.innerHTML = `
       <div class="pass-vault-save-header">
@@ -839,6 +964,10 @@
             <span>${escapeHtml(credential.username || 'No username detected')}</span>
           </span>
         </div>
+        ${actions.some((a) => a.kind === 'save') ? `<label class="pass-vault-save-name">
+          <span class="pass-vault-save-label">Name</span>
+          <input type="text" class="pass-vault-save-name-input" value="${escapeHtml(credential.title)}" placeholder="Name this login" autocomplete="off" spellcheck="false">
+        </label>` : ''}
         <div class="pass-vault-save-pass">
           <span class="pass-vault-save-label">Password</span>
           <span class="pass-vault-save-dots">${'•'.repeat(Math.min(16, credential.password.length))}</span>
@@ -890,9 +1019,13 @@
       button.textContent = action.kind === 'update' ? 'Updating…' : 'Saving…';
       status.textContent = '';
       status.className = 'pass-vault-save-status';
+      // Use the custom name the user typed (if any) as the saved item's title.
+      const nameInput = prompt.querySelector('.pass-vault-save-name-input');
+      const customName = nameInput?.value.trim();
+      const saveCredential = customName ? { ...credential, title: customName } : credential;
       const response = action.kind === 'update'
         ? await sendMessage({ type: 'update-captured', itemId, credential })
-        : await sendMessage({ type: 'save-captured', credential });
+        : await sendMessage({ type: 'save-captured', credential: saveCredential });
       if (response?.ok) {
         dismissedOfferSigs.add(sig);
         if (lastOfferSig === sig) lastOfferSig = null;
